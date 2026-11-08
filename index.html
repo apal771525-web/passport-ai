@@ -43,6 +43,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #canvas[hidden]{display:none}
 #status{padding:10px 12px;background:#f7f9fc;border-radius:9px}
 footer{text-align:center;padding:20px;color:#667085;font-size:13px}
+@media print{body{background:#fff}body *{visibility:hidden!important}#printPage,#printPage *{visibility:visible!important}#printPage{position:absolute;left:0;top:0;width:190mm;padding:0;margin:0}.print-grid{display:grid;grid-template-columns:repeat(2,auto);gap:5mm;align-items:start}.print-grid img{display:block;object-fit:fill;border:0}}
 @media(max-width:420px){.card{padding:16px}.grid{gap:9px}}
 </style>
 </head>
@@ -108,6 +109,17 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <p id="status" class="note" role="status" aria-live="polite">Upload a photo to begin. Your image is processed locally in this browser.</p>
 <canvas id="canvas" hidden></canvas>
 <button class="primary" id="download" type="button" disabled>Download JPG Photo</button>
+<div id="printTools" hidden>
+<div class="grid">
+<div><label for="printWidth">Print width (mm)</label><input id="printWidth" type="number" min="10" max="100" value="35" inputmode="decimal"></div>
+<div><label for="printHeight">Print height (mm)</label><input id="printHeight" type="number" min="10" max="150" value="45" inputmode="decimal"></div>
+</div>
+<label for="printCopies">Copies on A4 sheet</label>
+<select id="printCopies"><option value="4">4 copies</option><option value="6">6 copies</option><option value="8">8 copies</option><option value="10">10 copies</option></select>
+<button class="secondary" id="printSheetButton" type="button" disabled>Prepare A4 print sheet</button>
+<p class="note">Custom print layout only. Enter your required physical size; 35 × 45 mm is only a starting value, not a verified rule for your document. In the print dialog, choose A4 and 100% / actual size. Printer margins and settings can affect dimensions.</p>
+</div>
+
 </section>
 <p class="note">Privacy: this prototype processes the selected image locally in your browser; it does not send it to a server. It is a photo-sizing tool, not an AI background remover or official compliance checker. Requirements differ by document and country. Do not assume this output will be accepted; verify the latest official instructions before applying.</p>
 </main>
@@ -183,6 +195,8 @@ function renderRequirements(){
  $("process").disabled = officialUseBlocked;
  $("download").disabled = officialUseBlocked || !outputReady;
  $("download").textContent = $("format").value === "image/png" ? "Download PNG Photo" : "Download JPG Photo";
+ $("printTools").hidden = doc !== "custom";
+ $("printSheetButton").disabled = doc !== "custom" || !outputReady;
  if (doc === "custom"){
   officialUseBlocked = false;
   $("process").disabled = false;
@@ -220,7 +234,7 @@ $("reset").addEventListener("click", () => {
  $("zoom").value = "1"; $("horizontal").value = "0"; $("vertical").value = "0";
  updateRangeLabels();
  $("status").textContent = "Framing reset. Select Create Photo to update your result.";
- outputReady = false; $("download").disabled = true;
+ outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true;
 });
 photo.addEventListener("change", () => {
  const file = photo.files && photo.files[0];
@@ -239,7 +253,7 @@ photo.addEventListener("change", () => {
   preview.style.display = "block";
   updateImageInfo();
   $("status").textContent = "Photo loaded on this device. Adjust the framing, then create your photo.";
-  outputReady = false; $("download").disabled = true; canvas.hidden = true;
+  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true; canvas.hidden = true;
  };
  img.onerror = () => { URL.revokeObjectURL(nextUrl); alert("This image could not be opened. Please try another photo."); };
  img.src = nextUrl;
@@ -266,7 +280,7 @@ $("process").addEventListener("click", () => {
  ctx.drawImage(originalImage,dx,dy,dw,dh);
  canvas.hidden = false;
  $("status").textContent = "Photo created at " + w + " × " + h + " pixels. Review the crop before downloading." + resolutionNote";
- outputReady = true; $("download").disabled = false;
+ outputReady = true; $("download").disabled = false; $("printSheetButton").disabled = officialUseBlocked;
 });
 $("download").addEventListener("click", () => {
  if (officialUseBlocked || !outputReady || !canvas.width) return;
@@ -278,6 +292,20 @@ $("download").addEventListener("click", () => {
   link.href = url; link.download = "passport-ai-photo." + extension; link.click();
   setTimeout(() => URL.revokeObjectURL(url),1500);
  },$("format").value,Number($("quality").value)/100);
+});
+$("printSheetButton").addEventListener("click", () => {
+ if (officialUseBlocked || !outputReady || !canvas.width) return;
+ const pw = Number($("printWidth").value), ph = Number($("printHeight").value), copies = Number($("printCopies").value);
+ if (!Number.isFinite(pw) || !Number.isFinite(ph) || pw < 10 || pw > 100 || ph < 10 || ph > 150 || ![4,6,8,10].includes(copies)) {
+  alert("Enter a print size between 10–100 mm wide and 10–150 mm high, and choose a valid copy count."); return;
+ }
+ const popup = window.open("", "_blank");
+ if (!popup) { alert("Your browser blocked the print window. Allow pop-ups for this page and try again."); return; }
+ const data = canvas.toDataURL("image/png");
+ const cells = Array.from({length:copies}, () => "<img alt='Photo copy' src='"+data+"' style='width:"+pw+"mm;height:"+ph+"mm'>").join("");
+ popup.document.open();
+ popup.document.write("<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Passport AI — A4 print sheet</title><style>@page{size:A4;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0}.sheet{width:190mm;display:grid;grid-template-columns:repeat(2,auto);gap:5mm;align-items:start}.sheet img{display:block;object-fit:fill}p{font-size:11px;color:#555;margin:0 0 6mm}@media print{p{display:none}}</style></head><body><p>Custom print layout — check printer settings and measure a test print. Select A4 paper and 100% / actual size.</p><div class='sheet'>"+cells+"</div><script>window.onload=()=>window.print()<\\/script></body></html>");
+ popup.document.close();
 });
 $("format").addEventListener("change", renderRequirements);
 updateRangeLabels();
