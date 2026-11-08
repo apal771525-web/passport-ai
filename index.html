@@ -84,6 +84,12 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <button class="secondary" id="analyzeFace" type="button" disabled>Analyze face position</button>
 <p id="faceStatus" class="note" role="status" aria-live="polite">Upload a photo first. Face analysis starts only after you tap the button.</p>
 </div>
+<div class="image-info" style="margin-top:12px">
+<strong>Photo quality signals (basic estimate)</strong>
+<p class="note">Checks brightness, very dark/bright areas and estimated sharpness on a small in-browser sample. Results are approximate and are not an official photo-quality or acceptance check.</p>
+<button class="secondary" id="qualityCheck" type="button" disabled>Run photo quality check</button>
+<p id="qualityStatus" class="note" role="status" aria-live="polite">Upload a photo first. This check runs only when you tap the button.</p>
+</div>
 
 
 </section>
@@ -262,7 +268,7 @@ photo.addEventListener("change", () => {
   $("analyzeFace").disabled = false;
   $("faceStatus").textContent = "Ready. Tap Analyze face position to run the optional on-device check.";
   $("status").textContent = "Photo loaded on this device. Adjust the framing, then create your photo.";
-  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true; $("analyzeFace").disabled = false; $("faceStatus").textContent = "New photo loaded. Run analysis again if needed."; canvas.hidden = true;
+  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true; $("analyzeFace").disabled = false; $("qualityCheck").disabled = false; $("qualityStatus").textContent = "New photo loaded. Tap Run photo quality check to analyze it locally."; $("faceStatus").textContent = "New photo loaded. Run analysis again if needed."; canvas.hidden = true;
  };
  img.onerror = () => { URL.revokeObjectURL(nextUrl); alert("This image could not be opened. Please try another photo."); };
  img.src = nextUrl;
@@ -338,6 +344,49 @@ async function getFaceDetector(){
  }
  return faceDetectorPromise;
 }
+const qualityButton = document.getElementById("qualityCheck");
+const qualityStatus = document.getElementById("qualityStatus");
+qualityButton.addEventListener("click", () => {
+ const image = document.getElementById("preview");
+ if (!image || !image.complete || !image.naturalWidth) { qualityStatus.textContent = "Upload a photo first."; return; }
+ qualityButton.disabled = true;
+ qualityStatus.textContent = "Checking a small image sample locally…";
+ try {
+  const sample = document.createElement("canvas"), side = 256;
+  const scale = Math.min(1, side / Math.max(image.naturalWidth, image.naturalHeight));
+  sample.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  sample.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const sampleCtx = sample.getContext("2d", {willReadFrequently:true});
+  sampleCtx.drawImage(image, 0, 0, sample.width, sample.height);
+  const pixels = sampleCtx.getImageData(0, 0, sample.width, sample.height).data;
+  const gray = new Float32Array(sample.width * sample.height);
+  let total = 0, dark = 0, bright = 0;
+  for (let p = 0, n = 0; p < pixels.length; p += 4, n++) {
+   const y = 0.2126*pixels[p] + 0.7152*pixels[p+1] + 0.0722*pixels[p+2];
+   gray[n] = y; total += y; if (y < 25) dark++; if (y > 245) bright++;
+  }
+  const count = gray.length, average = total / count;
+  let lapTotal = 0, lapSq = 0, samples = 0;
+  for (let y = 1; y < sample.height-1; y++) for (let x = 1; x < sample.width-1; x++) {
+   const k = y*sample.width+x;
+   const lap = gray[k-1]+gray[k+1]+gray[k-sample.width]+gray[k+sample.width]-4*gray[k];
+   lapTotal += lap; lapSq += lap*lap; samples++;
+  }
+  const variance = samples ? Math.max(0,lapSq/samples-Math.pow(lapTotal/samples,2)) : 0;
+  const notes = [];
+  if (average < 75) notes.push("The sample looks quite dark overall; consider brighter, even lighting.");
+  else if (average > 205) notes.push("The sample looks very bright overall; check for washed-out areas.");
+  else notes.push("Average brightness is within a broad middle range.");
+  const darkPct=dark/count*100, brightPct=bright/count*100;
+  if (darkPct>20) notes.push(Math.round(darkPct)+"% of sampled pixels are very dark.");
+  if (brightPct>20) notes.push(Math.round(brightPct)+"% of sampled pixels are very bright.");
+  if (variance<45) notes.push("Estimated sharpness is low; the photo may be soft, but this simple measure can be misleading.");
+  else notes.push("The sample has visible edge detail; this does not guarantee the face itself is sharp.");
+  qualityStatus.textContent=notes.join(" ")+" These are rough image-wide signals, not face-specific measurements or government rules. Your photo was analyzed in this browser.";
+ } catch(error) {
+  qualityStatus.textContent="Quality check could not run in this browser. "+(error&&error.message?error.message:"");
+ } finally { qualityButton.disabled=false; }
+});
 faceButton.addEventListener("click", async () => {
  const image = document.getElementById("preview");
  if (!image || !image.complete || !image.naturalWidth) { faceStatus.textContent = "Upload a photo first."; return; }
