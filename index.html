@@ -111,7 +111,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 const $ = id => document.getElementById(id);
 const photo = $("photo"), preview = $("preview"), canvas = $("canvas");
 const ctx = canvas.getContext("2d");
-let originalImage = null, imageUrl = null, outputReady = false;
+let originalImage = null, imageUrl = null, outputReady = false, officialUseBlocked = true;
 
 const requirementProfiles = {
  "United States|passport-paper": {
@@ -156,9 +156,22 @@ function renderRequirements(){
  const doc = $("document").value;
  const panel = $("requirements");
  const profile = requirementProfiles[country + "|" + doc];
+ officialUseBlocked = doc !== "custom";
+ $("process").disabled = officialUseBlocked;
+ $("download").disabled = officialUseBlocked || !outputReady;
+ $("download").textContent = $("format").value === "image/png" ? "Download PNG Photo" : "Download JPG Photo";
+ if (doc === "custom"){
+  officialUseBlocked = false;
+  $("process").disabled = false;
+  $("download").disabled = !outputReady;
+  panel.innerHTML = "<strong>Custom photo mode</strong><p class='note'>You can resize and export a general-purpose image in this mode. This is not an official passport, visa or ID compliance check. Select an official document type to see sourced guidance and safeguards.</p>";
+  return;
+ }
  if (!country || !profile){
   const indiaNote = country === "India" ? "India selected: a central Passport Seva source for this exact application route has not yet been verified in this build. Some Indian missions publish different overseas photo instructions; we will not assume those apply universally." : "No verified profile is available for this country and document route yet.";
-  panel.innerHTML = "<strong>Requirements not yet configured</strong><p class='note'>" + indiaNote + " Use the issuing authority's current instructions before preparing or submitting a photo.</p>";
+  $("process").disabled = true;
+  $("download").disabled = true;
+  panel.innerHTML = "<strong>Official export is disabled for this selection</strong><p class='note'>" + indiaNote + " Select Custom photo for general-purpose editing, or wait until this exact application route has a verified profile.</p>";
   return;
  }
  panel.innerHTML = "<strong>" + profile.title + "</strong><ul>" + profile.bullets.map(x => "<li>" + x + "</li>").join("") + "</ul><p class='policy-warning'>" + profile.warning + "</p><p class='note'>Source: <a href='" + profile.source + "' target='_blank' rel='noopener noreferrer'>" + profile.sourceLabel + "</a><br>Checked: 9 November 2026. Recheck the issuing authority before applying.</p>";
@@ -201,6 +214,7 @@ photo.addEventListener("change", () => {
 });
 
 $("process").addEventListener("click", () => {
+ if (officialUseBlocked) { alert("Official photo export is disabled for this country/document selection. Choose Custom photo for general-purpose editing."); return; }
  if (!originalImage) { alert("Please upload a photo first."); return; }
  const w = Number($("width").value), h = Number($("height").value);
  if (!Number.isInteger(w) || !Number.isInteger(h) || w < 100 || h < 100 || w > 3000 || h > 3000) {
@@ -221,7 +235,7 @@ $("process").addEventListener("click", () => {
  outputReady = true; $("download").disabled = false;
 });
 $("download").addEventListener("click", () => {
- if (!outputReady || !canvas.width) return;
+ if (officialUseBlocked || !outputReady || !canvas.width) return;
  canvas.toBlob(blob => {
   if (!blob) { alert("Unable to create JPG. Please try again."); return; }
   const format = $("format").value;
@@ -231,6 +245,7 @@ $("download").addEventListener("click", () => {
   setTimeout(() => URL.revokeObjectURL(url),1500);
  },$("format").value,Number($("quality").value)/100);
 });
+$("format").addEventListener("change", renderRequirements);
 updateRangeLabels();
 renderRequirements();
 </script>
