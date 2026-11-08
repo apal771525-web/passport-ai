@@ -31,6 +31,11 @@ button{width:100%;border:0;padding:15px;border-radius:11px;font-size:16px;font-w
 .primary{background:#2459d3;color:#fff}.secondary{background:#eaf0fc;color:#234da6}
 button:disabled{opacity:.45;cursor:not-allowed}
 .note{color:#667085;font-size:13px;line-height:1.6}
+.requirements{margin-top:14px;padding:15px;border:1px solid #dbe4f0;border-radius:12px;background:#f8faff;line-height:1.55}
+.requirements strong{display:block;margin-bottom:7px;color:#172033}
+.requirements ul{padding-left:20px;margin:8px 0}
+.requirements a{color:#2459d3;font-weight:650;overflow-wrap:anywhere}
+.policy-warning{color:#8a3b12;background:#fff4e8;border:1px solid #f5d2b5;padding:10px;border-radius:9px;font-size:13px;line-height:1.5}
 #canvas{display:block;max-width:100%;height:auto;margin:12px auto;border:1px solid #e4e7ec;border-radius:8px}
 #canvas[hidden]{display:none}
 #status{padding:10px 12px;background:#f7f9fc;border-radius:9px}
@@ -50,13 +55,17 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <h2>01. Select your document</h2>
 <label for="document">Document type</label>
 <select id="document">
-<option>Passport Photo</option><option>Visa Photo</option><option>ID Card Photo</option><option>Custom Photo</option>
+<option value="passport-paper">Passport photo (printed)</option><option value="passport-digital">Passport photo (digital / online)</option><option value="visa-digital">Visa photo (digital)</option><option value="id">ID card photo</option><option value="custom">Custom photo</option>
 </select>
 <label for="country">Country / Region</label>
 <select id="country">
-<option value="">Select country</option><option>India</option><option>United States</option><option>United Kingdom</option><option>Canada</option><option>Australia</option><option>Other</option>
+<option value="">Select country</option><option value="India">India</option><option value="United States">United States</option><option value="United Kingdom">United Kingdom</option><option value="Canada">Canada</option><option value="Australia">Australia</option><option value="Other">Other</option>
 </select>
-<p class="note">These selections are for your reference only. Verified country- and document-specific rules are not available in this prototype.</p>
+<p class="note">Choose the exact country and application route. Rules can differ between paper photos, online renewals, visas and overseas applications.</p>
+<div id="requirements" class="requirements" aria-live="polite">
+<strong>Requirements not verified for this selection</strong>
+<p class="note">Select a country and document route to view sourced guidance. If a government requires an original unedited image, Passport AI will warn you not to export an edited copy.</p>
+</div>
 </section>
 
 <section class="card">
@@ -104,6 +113,58 @@ const photo = $("photo"), preview = $("preview"), canvas = $("canvas");
 const ctx = canvas.getContext("2d");
 let originalImage = null, imageUrl = null, outputReady = false;
 
+const requirementProfiles = {
+ "United States|passport-paper": {
+  title:"United States — passport photo for paper application",
+  bullets:["Printed photo size: 2 × 2 inches (51 × 51 mm).","Head height: 25–35 mm from chin to crown.","Plain white or off-white background; head and shoulders centred.","Submit the original, unchanged photo. Do not use filters, retouching or AI edits."],
+  warning:"This editor crops/resizes and therefore creates an edited derivative. Do not submit its export as an official US passport photo; follow the State Department instructions and provide an unchanged original.",
+  source:"https://travel.state.gov/en/passports/apply/help/photos.html", sourceLabel:"U.S. Department of State — Passport Photos"
+ },
+ "United States|passport-digital": {
+  title:"United States — online passport renewal",
+  bullets:["Use an original, unedited digital photo taken within the last 6 months.","Plain white/off-white background; face and shoulders centred; even lighting.","The official page stresses no filters or digital changes. Pixel and file-size details should be checked in the live upload workflow."],
+  warning:"Do not use this editor's processed export for the official application: the State Department requires the original, unedited photo.",
+  source:"https://travel.state.gov/en/passports/renew-replace/online/upload-digital-photo.html", sourceLabel:"U.S. Department of State — Uploading a Digital Photo"
+ },
+ "United Kingdom|passport-digital": {
+  title:"United Kingdom — digital passport application",
+  bullets:["Minimum 600 × 750 pixels; file 50 KB–10 MB.","Colour, clear and in focus; plain light-coloured background; no other people or objects.","Must be unaltered. If using your own device, include head, shoulders and upper body — do not crop; the application process crops it."],
+  warning:"Cropping, resizing, background replacement or filtering in this editor would alter the photo. Use the original image for the UK passport application.",
+  source:"https://www.gov.uk/photos-for-passports", sourceLabel:"GOV.UK — Get a passport photo"
+ },
+ "United Kingdom|visa-digital": {
+  title:"United Kingdom — visa application digital photo",
+  bullets:["Minimum 600 × 750 pixels; 50 KB–6 MB; JPG/JPEG; portrait orientation.","Must be clear, in colour, well lit and unaltered; do not mirror or flip.","Plain light-coloured background; face, shoulders and upper body visible."],
+  warning:"The official guidance requires an unaltered image. Do not submit a crop or edited export from this tool.",
+  source:"https://www.gov.uk/guidance/how-to-take-a-photo-for-a-visa-application-or-permission", sourceLabel:"UK Visas and Immigration — Visa photo guidance"
+ },
+ "Canada|passport-digital": {
+  title:"Canada — digital passport photo (online renewal)",
+  bullets:["JPEG/JPG; 3:2 aspect ratio, portrait orientation.","Minimum 1,200 × 1,800 pixels; maximum 3,000 × 4,500 pixels.","File size 200 KB–5 MB; chin-to-crown height must be 45%–50% of image height.","The digital file must come directly from the original camera file; no editing, cropping or repeated-save compression."],
+  warning:"Canada's digital passport rules require an original camera file. Do not submit an edited export from this editor.",
+  source:"https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/photos.html", sourceLabel:"Government of Canada — Passport photo requirements"
+ },
+ "Australia|passport-paper": {
+  title:"Australia — passport printed photos",
+  bullets:["Printed photo size: 35–40 mm wide and 45–50 mm high.","Face height from chin to crown: 32–36 mm.","Plain white or light grey background; even lighting; no retouching.","Two good-quality colour prints are required. The Passport Office recommends professional providers and does not recommend online photo services or mobile apps."],
+  warning:"The Australian Passport Office explicitly cautions against online photo services and mobile apps. Use a professional provider and do not rely on this editor for an Australian passport application.",
+  source:"https://www.passports.gov.au/PhotoGuidelines", sourceLabel:"Australian Passport Office — Photo guidelines"
+ }
+};
+function renderRequirements(){
+ const country = $("country").value;
+ const doc = $("document").value;
+ const panel = $("requirements");
+ const profile = requirementProfiles[country + "|" + doc];
+ if (!country || !profile){
+  const indiaNote = country === "India" ? "India selected: a central Passport Seva source for this exact application route has not yet been verified in this build. Some Indian missions publish different overseas photo instructions; we will not assume those apply universally." : "No verified profile is available for this country and document route yet.";
+  panel.innerHTML = "<strong>Requirements not yet configured</strong><p class='note'>" + indiaNote + " Use the issuing authority's current instructions before preparing or submitting a photo.</p>";
+  return;
+ }
+ panel.innerHTML = "<strong>" + profile.title + "</strong><ul>" + profile.bullets.map(x => "<li>" + x + "</li>").join("") + "</ul><p class='policy-warning'>" + profile.warning + "</p><p class='note'>Source: <a href='" + profile.source + "' target='_blank' rel='noopener noreferrer'>" + profile.sourceLabel + "</a><br>Checked: 9 November 2026. Recheck the issuing authority before applying.</p>";
+}
+$("country").addEventListener("change", renderRequirements);
+$("document").addEventListener("change", renderRequirements);
 function updateRangeLabels(){
  $("qualityValue").textContent = $("quality").value + "%";
  $("zoomValue").textContent = Number($("zoom").value).toFixed(2) + "×";
@@ -171,6 +232,7 @@ $("download").addEventListener("click", () => {
  },$("format").value,Number($("quality").value)/100);
 });
 updateRangeLabels();
+renderRequirements();
 </script>
 </body>
 </html>
