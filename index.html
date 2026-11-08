@@ -35,6 +35,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .requirements strong{display:block;margin-bottom:7px;color:#172033}
 .requirements ul{padding-left:20px;margin:8px 0}
 .requirements a{color:#2459d3;font-weight:650;overflow-wrap:anywhere}
+.image-info{margin-top:12px;padding:13px;border:1px solid #dbe4f0;border-radius:11px;background:#f8faff;font-size:13px;line-height:1.6}
+.image-info strong{display:block;color:#172033;margin-bottom:5px}
+.image-info .good{color:#18794e}.image-info .caution{color:#9a5800}
 .policy-warning{color:#8a3b12;background:#fff4e8;border:1px solid #f5d2b5;padding:10px;border-radius:9px;font-size:13px;line-height:1.5}
 #canvas{display:block;max-width:100%;height:auto;margin:12px auto;border:1px solid #e4e7ec;border-radius:8px}
 #canvas[hidden]{display:none}
@@ -73,6 +76,8 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <label class="upload" for="photo"><strong>＋ Choose your selfie</strong>Tap to select a JPG, PNG or WebP image from your phone.<input type="file" id="photo" accept="image/jpeg,image/png,image/webp" hidden></label>
 <img id="preview" class="preview" alt="Your uploaded photo preview">
 <p class="note">Use a clear, front-facing photo with even lighting. Keep your full head visible; check the crop before downloading.</p>
+<div id="imageInfo" class="image-info" aria-live="polite"><strong>Image check</strong><span>Upload a photo to see its file details and resolution guidance.</span></div>
+
 </section>
 
 <section class="card">
@@ -111,7 +116,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 const $ = id => document.getElementById(id);
 const photo = $("photo"), preview = $("preview"), canvas = $("canvas");
 const ctx = canvas.getContext("2d");
-let originalImage = null, imageUrl = null, outputReady = false, officialUseBlocked = true;
+let originalImage = null, imageUrl = null, outputReady = false, officialUseBlocked = true, originalFile = null;
 
 const requirementProfiles = {
  "India|india-minor-under4": {
@@ -196,6 +201,14 @@ function renderRequirements(){
 }
 $("country").addEventListener("change", renderRequirements);
 $("document").addEventListener("change", renderRequirements);
+function updateImageInfo(){
+ const panel = $("imageInfo");
+ if (!originalImage || !originalFile) { panel.innerHTML = "<strong>Image check</strong><span>Upload a photo to see its file details and resolution guidance.</span>"; return; }
+ const bytes = originalFile.size;
+ const sizeLabel = bytes >= 1024*1024 ? (bytes/(1024*1024)).toFixed(2)+" MB" : (bytes/1024).toFixed(1)+" KB";
+ const ratio = (originalImage.width/originalImage.height).toFixed(3);
+ panel.innerHTML = "<strong>Image details</strong><span>"+originalImage.width+" × "+originalImage.height+" px · "+sizeLabel+" · "+originalFile.type+" · aspect ratio "+ratio+"</span><br><span class='good'>Loaded successfully on this device.</span><p class='note'>Resolution guidance is based only on pixel dimensions. This prototype does not yet reliably detect blur, closed eyes, shadows, glare, facial expression or government compliance.</p>";
+}
 function updateRangeLabels(){
  $("qualityValue").textContent = $("quality").value + "%";
  $("zoomValue").textContent = Number($("zoom").value).toFixed(2) + "×";
@@ -222,8 +235,9 @@ photo.addEventListener("change", () => {
  const img = new Image();
  img.onload = () => {
   if (imageUrl) URL.revokeObjectURL(imageUrl);
-  imageUrl = nextUrl; originalImage = img; preview.src = imageUrl;
+  imageUrl = nextUrl; originalImage = img; originalFile = file; preview.src = imageUrl;
   preview.style.display = "block";
+  updateImageInfo();
   $("status").textContent = "Photo loaded on this device. Adjust the framing, then create your photo.";
   outputReady = false; $("download").disabled = true; canvas.hidden = true;
  };
@@ -239,6 +253,8 @@ $("process").addEventListener("click", () => {
   alert("Enter whole-number dimensions between 100 and 3000 pixels."); return;
  }
  const backgrounds = {white:"#ffffff",lightgray:"#eeeeee",blue:"#e5efff"};
+ const requiredScale = Math.max(w / originalImage.width, h / originalImage.height);
+ const resolutionNote = requiredScale > 1.01 ? " Warning: this output enlarges the source image by about "+Math.round((requiredScale-1)*100)+"%; quality may look soft." : " Source pixel dimensions are sufficient for this output size before cropping.";
  canvas.width = w; canvas.height = h;
  ctx.fillStyle = backgrounds[$("background").value] || "#ffffff";
  ctx.fillRect(0,0,w,h);
@@ -249,7 +265,7 @@ $("process").addEventListener("click", () => {
  const dy = -extraY * (Number($("vertical").value)+100)/200;
  ctx.drawImage(originalImage,dx,dy,dw,dh);
  canvas.hidden = false;
- $("status").textContent = "Photo created at " + w + " × " + h + " pixels. Review the crop before downloading.";
+ $("status").textContent = "Photo created at " + w + " × " + h + " pixels. Review the crop before downloading." + resolutionNote";
  outputReady = true; $("download").disabled = false;
 });
 $("download").addEventListener("click", () => {
