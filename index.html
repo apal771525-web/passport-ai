@@ -55,7 +55,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <h2>01. Select your document</h2>
 <label for="document">Document type</label>
 <select id="document">
-<option value="passport-paper">Passport photo (printed)</option><option value="passport-digital">Passport photo (digital / online)</option><option value="visa-digital">Visa photo (digital)</option><option value="id">ID card photo</option><option value="custom">Custom photo</option>
+<option value="passport-paper">Passport photo (printed)</option><option value="passport-digital">Passport photo (digital / online)</option><option value="visa-digital">Visa photo (digital)</option><option value="india-minor-under4">India: minor under 4 (printed photo)</option><option value="id">ID card photo</option><option value="custom">Custom photo</option>
 </select>
 <label for="country">Country / Region</label>
 <select id="country">
@@ -114,6 +114,24 @@ const ctx = canvas.getContext("2d");
 let originalImage = null, imageUrl = null, outputReady = false, officialUseBlocked = true;
 
 const requirementProfiles = {
+ "India|india-minor-under4": {
+  title:"India — ordinary passport application, child below 4 years",
+  bullets:["Passport Seva says applicants below 4 years must carry a recent passport-size photograph.","Photo size: 4.5 × 3.5 cm with a white background.","This instruction is specifically for applicants below 4 years; do not apply it to every Indian passport applicant."],
+  warning:"The portal's instructions are specific to children below 4. This editor's processed image is not certified by Passport Seva; confirm the current appointment instructions before use.",
+  source:"https://www.passportindia.gov.in/psp/Apply", sourceLabel:"Passport Seva, Ministry of External Affairs — Apply for an ordinary passport"
+ },
+ "United States|visa-digital": {
+  title:"United States — visa photo",
+  bullets:["Photo size: 2 × 2 inches (51 × 51 mm).","For a digital image, head height from top of hair to chin must be 50%–69% of total image height.","Plain white or off-white background; face forward, neutral expression; glasses are generally not allowed except rare medical circumstances."],
+  warning:"Use the official U.S. visa photo instructions for the exact application and upload workflow. Do not treat a resized image as proof of acceptance.",
+  source:"https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/photos/frequently-asked-questions.html", sourceLabel:"U.S. Department of State — Visa photo FAQs"
+ },
+ "Canada|passport-paper": {
+  title:"Canada — printed passport photo",
+  bullets:["Printed photo size: 50 × 70 mm.","Face height from chin to crown: 31–36 mm.","Two identical, unaltered photos are required; follow the professional photographer and guarantor/studio details in the current application instructions."],
+  warning:"Canada requires unaltered professional passport photos. This editor's crop or export is not a substitute for the required original professional photo.",
+  source:"https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/photos.html", sourceLabel:"Government of Canada — Passport photo requirements"
+ },
  "United States|passport-paper": {
   title:"United States — passport photo for paper application",
   bullets:["Printed photo size: 2 × 2 inches (51 × 51 mm).","Head height: 25–35 mm from chin to crown.","Plain white or off-white background; head and shoulders centred.","Submit the original, unchanged photo. Do not use filters, retouching or AI edits."],
