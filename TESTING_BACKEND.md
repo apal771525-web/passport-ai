@@ -8,7 +8,7 @@ Run from the repository root:
 node --test
 ```
 
-The suite covers method and content-type rejection, same-origin checks, malformed input, base64 validation, MIME/signature mismatch, HTTP and image size limits, privacy/security headers, and the expected disabled-provider response.
+The suite covers method and content-type rejection, same-origin checks, malformed input, base64 validation, MIME/signature mismatch, HTTP and image size limits, privacy/security headers, the expected disabled-provider response, and the rate-limiter adapter's fail-closed behavior.
 
 ## Security boundary
 
@@ -19,9 +19,15 @@ The suite covers method and content-type rejection, same-origin checks, malforme
 - The image payload is handled in memory only by this scaffold; no disk writes, provider transmission, or image logging are implemented. Clearing a Buffer does not guarantee that all JavaScript string copies are erased from process memory.
 - These unit tests do not replace a deployed Vercel integration test, malware/content scanning, authentication, abuse monitoring, or a privacy/legal review.
 
-## Rate limiting: production requirement
+## Rate-limiter adapter — implemented, not activated
 
-A reliable rate limiter must use a shared, durable store (for example, a managed Redis/KV service) so limits apply across serverless instances and regions. An in-memory counter is not sufficient on serverless platforms and must not be presented as production protection. The provider-disabled scaffold deliberately does not pretend that rate limiting is active. Before enabling image processing publicly, add a shared-store limiter, per-user/session quotas, IP abuse controls with a documented retention policy, and alerting. Fail closed if the limiter is unavailable.
+`lib/rate-limit.js` defines an adapter around an injected shared/durable store. Its `consume(key, limit, windowSeconds)` operation must be atomic across serverless instances and regions. There is deliberately no in-memory fallback.
+
+- Missing store configuration, weak/missing HMAC secret, missing identity, invalid store response, and store errors all fail closed.
+- Identifiers are HMAC-SHA256 hashed before becoming store keys; raw identifiers are not written into the key.
+- Prefer a stable authenticated user ID. If an IP fallback is later used, document its purpose, retention, proxy-trust rules, and privacy notice.
+- The adapter is unit-tested with fake stores only. No Redis/KV vendor, credentials, network connection, endpoint wiring, or live quota is configured.
+- The endpoint does not yet enforce this adapter. Authentication and a production shared-store implementation must be reviewed and tested before public image processing is enabled.
 
 ## Deployment boundary
 
