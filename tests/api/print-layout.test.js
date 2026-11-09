@@ -7,12 +7,14 @@ test("India under-four print preset is exactly 35 × 45 mm", () => {
   const preset=getPrintPreset("India","passport-minor-under4");
   assert.equal(preset.preferredWidthMm,35);
   assert.equal(preset.preferredHeightMm,45);
+  assert.deepEqual(preset.allowedBackgrounds,["white"]);
   assert.equal(validatePrintDimensions(35,45,preset).valid,true);
   assert.equal(validatePrintDimensions(36,45,preset).reason,"outside_official_range");
 });
 
 test("Australia print preset accepts only published physical-size ranges", () => {
   const preset=getPrintPreset("Australia","passport-paper");
+  assert.deepEqual(preset.allowedBackgrounds,["white","lightgray"]);
   assert.equal(validatePrintDimensions(35,45,preset).valid,true);
   assert.equal(validatePrintDimensions(40,50,preset).valid,true);
   assert.equal(validatePrintDimensions(34,45,preset).valid,false);
