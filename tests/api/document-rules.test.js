@@ -19,7 +19,7 @@ test("route list is limited to entries for selected country",()=>{
  assert.ok(routes.some(item=>item.route==="visa-digital"));
  assert.equal(getAvailableRoutes("Unknown").length,0);
 });
-test("unaltered-photo routes block official export",()=>{
+test("unaltered-photo and no-photo routes block official export",()=>{\n assert.equal(getDocumentRule("India","passport-psk-adult").officialExportBlocked,true);
  for (const [country,route] of [
   ["United States","passport-paper"],["United States","passport-online"],
   ["United Kingdom","passport-digital"],["United Kingdom","passport-paper"],
