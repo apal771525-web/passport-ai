@@ -2,22 +2,45 @@
 // Deliberately disabled: this endpoint never calls an AI provider in this version.
 const { getProviderStatus } = require("../lib/provider-config");
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store, max-age=0");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
 
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "METHOD_NOT_ALLOWED" });
   }
+
+  // Browser requests must be same-origin. Requests without Origin are allowed
+  // for server-to-server clients; this endpoint uses no cookie authentication.
+  const origin = req.headers.origin;
+  if (origin) {
+    let originHost;
+    try { originHost = new URL(origin).host; } catch {
+      return res.status(403).json({ error: "INVALID_ORIGIN" });
+    }
+    if (!req.headers.host || originHost !== req.headers.host) {
+      return res.status(403).json({ error: "CROSS_ORIGIN_REQUEST_BLOCKED" });
+    }
+  }
+
+  const contentLength = Number(req.headers["content-length"] || 0);
+  if (contentLength > MAX_BODY_BYTES) {
+    return res.status(413).json({ error: "REQUEST_TOO_LARGE", maxBytes: MAX_BODY_BYTES });
+  }
   if (!String(req.headers["content-type"] || "").toLowerCase().includes("application/json")) {
     return res.status(415).json({ error: "UNSUPPORTED_CONTENT_TYPE" });
   }
+  if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+    return res.status(400).json({ error: "INVALID_REQUEST_BODY" });
+  }
 
-  const { imageBase64, mimeType } = req.body || {};
+  const { imageBase64, mimeType } = req.body;
   if (!ALLOWED.has(mimeType) || typeof imageBase64 !== "string") {
     return res.status(400).json({ error: "INVALID_IMAGE_INPUT" });
   }
@@ -39,7 +62,10 @@ module.exports = async function handler(req, res) {
     "image/png": buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])),
     "image/webp": buffer.length >= 12 && buffer.toString("ascii",0,4) === "RIFF" && buffer.toString("ascii",8,12) === "WEBP"
   };
-  if (!valid[mimeType]) return res.status(400).json({ error: "IMAGE_SIGNATURE_MISMATCH" });
+  if (!valid[mimeType]) {
+    buffer.fill(0);
+    return res.status(400).json({ error: "IMAGE_SIGNATURE_MISMATCH" });
+  }
 
   // No disk writes, provider requests, or image logging in this scaffold.
   buffer.fill(0);
