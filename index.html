@@ -66,7 +66,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}
 <div class="result-wrap"><canvas id="canvas" hidden></canvas><p id="resultHint" class="note">Your finished photo will appear here.</p></div>
 <div class="actions"><button class="secondary" id="downloadPng" type="button" disabled>Download PNG</button><button class="primary" id="downloadJpg" type="button" disabled>Download JPG</button></div>
 </section>
-<div class="notice"><strong>Important — official photo rules:</strong> Some authorities prohibit digitally altered photos, including background replacement or filters. For example, U.S. passport and visa guidance requires an original, unaltered image, and UK visa guidance says the photo must not be altered. For those applications, select “Keep original background” and follow the official instructions. AI background replacement is only a preparation aid where the receiving authority permits it. No tool can guarantee acceptance.</div>
+<div class="notice"><strong>Important — official photo rules:</strong> Some authorities prohibit digital edits. US passport and visa rules restrict digital alteration; UK visa photos must not be altered; Canadian passport photos must remain completely unaltered, including cropping and background changes. PassportAI disables processing for UK visa and Canadian passport selections, and keeps the original background for US selections. Always check the exact official rules: <a href="https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/photos.html" target="_blank" rel="noopener">US visa</a> · <a href="https://travel.state.gov/en/passports/apply/help/photos.html" target="_blank" rel="noopener">US passport</a> · <a href="https://www.gov.uk/guidance/how-to-take-a-photo-for-a-visa-application-or-permission" target="_blank" rel="noopener">UK visa</a> · <a href="https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/photos.html" target="_blank" rel="noopener">Canada passport</a>. No tool can guarantee acceptance.</div>
 <p class="note">Privacy: this version processes your selected image locally in your browser. The AI model is downloaded from a public CDN; your photo is not uploaded to PassportAI servers by this page. Do not use this prototype as a substitute for the official photo checker.</p>
 </main>
 <footer>© 2026 PassportAI. All Rights Reserved.</footer>
@@ -79,7 +79,6 @@ let originalImage=null,imageUrl=null,segmentation=null,segmentationMask=null,out
 const presets={
  usVisa:{w:600,h:600,note:"US visa: official guidance specifies a square image and a plain white/off-white background; digital alteration is not permitted. Confirm the exact upload instructions for your visa category."},
  ukVisa:{w:600,h:750,note:"UK visa digital photo: at least 600 × 750 px, JPG/JPEG, 50 KB–6 MB, portrait orientation. UKVI says the photo must not be digitally altered."},
- caPassport:{w:591,h:827,note:"Canada passport: printed photo size is 50 × 70 mm. Pixel dimensions shown are an approximate 300-DPI export, not a government-mandated digital pixel size."},
  schengen:{w:413,h:531,note:"Schengen photo dimensions vary by application centre/country. 35 × 45 mm is a common printed format; confirm with the specific embassy or visa centre before use."}
 };
 function setStatus(s){$("status").textContent=s}
@@ -89,11 +88,20 @@ function updatePreset(){
  const c=$("country").value,d=$("document").value;let p=null;
  if(c==="us"&&d==="visa")p=presets.usVisa;
  if(c==="uk"&&d==="visa")p=presets.ukVisa;
- if(c==="ca"&&d==="passport")p=presets.caPassport;
  if(c==="schengen"&&d==="visa")p=presets.schengen;
- if(p){$("width").value=p.w;$("height").value=p.h;$("presetNote").textContent=p.note}
+ const mode=$("backgroundMode"),processButton=$("process");
+ mode.disabled=false;processButton.disabled=false;
+ if(c==="us"&&(d==="visa"||d==="passport")){
+  mode.value="original";mode.disabled=true;
+  $("presetNote").textContent=d==="passport"?"US passport: printed photo is 2 × 2 inches. Use an original photo; do not apply AI background replacement, filters or facial edits. This tool's crop/resize output must still be checked against the official instructions.":"US visa: use crop/resize only and keep the original background. Do not use AI background replacement or facial edits. The embassy/consulate makes the final acceptance decision.";
+ } else if(c==="uk"&&d==="visa"){
+  mode.value="original";mode.disabled=true;processButton.disabled=true;
+  $("presetNote").textContent="UK visa photo must not be altered by software. Do not export a processed image from this tool for this application; use the original photo and follow the official UKVI upload instructions.";
+ } else if(c==="ca"&&d==="passport"){
+  mode.value="original";mode.disabled=true;processButton.disabled=true;
+  $("presetNote").textContent="Canada passport photos must be unaltered. The rules explicitly prohibit cropping around the head, background replacement and AI edits. Do not use an exported image from this tool for a Canadian passport application.";
+ } else if(p){$("width").value=p.w;$("height").value=p.h;$("presetNote").textContent=p.note}
  else if(c==="india"){$("presetNote").textContent="India: exact photo requirements depend on the service (passport, e-Visa or other ID). No unverified preset is applied. Check the relevant official portal and enter its exact dimensions."}
- else if(c==="us"&&d==="passport"){$("presetNote").textContent="US passport: printed photo is 2 × 2 inches; use the official current guidance. The authority requires an original, unedited photo."}
  else {$("presetNote").textContent="No verified preset is loaded for this combination. Enter dimensions from the exact issuing authority's instructions; do not assume one size fits every document."}
  invalidate();
 }
