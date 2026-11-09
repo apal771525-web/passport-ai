@@ -8,7 +8,7 @@ Run from the repository root:
 node --test
 ```
 
-The suite covers method and content-type rejection, same-origin checks, malformed input, base64 validation, MIME/signature mismatch, HTTP and image size limits, privacy/security headers, the expected disabled-provider response, the rate-limiter adapter's fail-closed behavior, and authentication-guard claim checks.
+The suite covers method and content-type rejection, same-origin checks, malformed input, base64 validation, MIME/signature mismatch, HTTP and image size limits, privacy/security headers, the expected disabled-provider response, the rate-limiter adapter's fail-closed behavior, authentication-guard claim checks, and one-time private-upload authorization policy checks.
 
 ## Security boundary
 
@@ -37,6 +37,15 @@ The suite covers method and content-type rejection, same-origin checks, malforme
 - The future middleware must validate signature, issuer, audience, expiry, and relevant claims before attaching `request.auth`.
 - No login provider, OAuth client, session cookie, secret, user database, or external authentication service is configured.
 - The guard is not wired into the image endpoint yet; that endpoint remains disabled.
+
+## Private upload policy — implemented, not activated
+
+`lib/upload-policy.js` validates a server-attached authenticated principal, durable consume-once upload intent, ownership, expiry, allowed MIME, byte limits, and exact server-generated private object key. The store is injected and must provide atomic consume-once semantics across serverless instances.
+
+- Tests use fake stores only. There is no storage SDK, bucket, signed upload URL, intent-creation endpoint, file-signature/decoder validation, cleanup job, or live upload flow.
+- The 3 MiB policy ceiling matches the existing image-processing scaffold. The actual object size and file signature must be checked again after upload, before processing.
+- Client filenames and client-provided URLs are never used as storage destinations. Never fetch arbitrary client URLs.
+- The recommended architecture and mandatory activation controls are in `UPLOAD_SECURITY.md`.
 
 ## Deployment boundary
 
