@@ -36,6 +36,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #status{padding:10px 12px;background:#f7f9fc;border-radius:9px}
 footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 @media(max-width:420px){.card{padding:16px}.grid{gap:9px}}
+.print-controls{padding:14px;background:#f7f9fc;border:1px solid #e4e9f1;border-radius:12px;margin:14px 0}.print-controls[hidden]{display:none}.print-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.print-help{font-size:13px;line-height:1.55;color:#667085}.print-action{margin-top:8px}
 </style>
 </head>
 <body>
@@ -47,16 +48,17 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 </section>
 
 <section class="card">
-<h2>01. Select your document</h2>
-<label for="document">Document type</label>
-<select id="document">
-<option>Passport Photo</option><option>Visa Photo</option><option>ID Card Photo</option><option>Custom Photo</option>
-</select>
+<h2>01. Select country & application route</h2>
 <label for="country">Country / Region</label>
 <select id="country">
-<option value="">Select country</option><option>India</option><option>United States</option><option>United Kingdom</option><option>Canada</option><option>Australia</option><option>Other</option>
+<option value="">Select country</option><option value="India">India</option><option value="United States">United States</option><option value="United Kingdom">United Kingdom</option><option value="Canada">Canada</option><option value="Australia">Australia</option><option value="Other">Other</option>
 </select>
-<p class="note">These selections are for your reference only. Verified country- and document-specific rules are not available in this prototype.</p>
+<label for="applicationRoute">Exact document / application route</label>
+<select id="applicationRoute"><option value="">Choose a country first</option></select>
+<div id="officialRequirements" class="requirements" aria-live="polite">
+<strong>Official requirements not verified</strong>
+<p class="note">Select a country and exact application route. Passport photo rules vary by document and application method.</p>
+</div>
 </section>
 
 <section class="card">
@@ -67,7 +69,28 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 </section>
 
 <section class="card">
-<h2>03. Adjust size and framing</h2>
+<h2>03. Face & photo quality check</h2>
+<p class="note">Optional on-device analysis. Tap Analyze to check face count, approximate framing, sharpness, exposure and background consistency. Your photo is not uploaded by this feature. MediaPipe's library/model are downloaded when you start analysis; its provider may collect usage/performance metrics.</p>
+<button class="secondary" id="analyzeQuality" type="button" disabled>Analyze face & photo quality</button>
+<p id="faceQualityStatus" class="note" role="status" aria-live="polite">Upload a photo first.</p>
+<ul id="faceQualityIssues" class="note"></ul>
+<p class="note">Advisory only. Detector and image-wide heuristics can be wrong. This does not verify identity, change/crop your image, or certify any official passport/visa requirement. Verify the current rules for your exact application.</p>
+</section>
+
+<section class="card">
+<h2>04. Adjust size and framing</h2>
+<div id="printControls" class="print-controls" hidden>
+<strong>Physical print size</strong>
+<p class="print-help">Choose a physical size and an explicit print resolution. Pixel dimensions are calculated from millimetres and DPI; the print PDF places the photo at the exact physical size.</p>
+<div class="print-grid">
+<div><label for="photoWidthMm">Photo width (mm)</label><input id="photoWidthMm" type="number" min="20" max="100" step="0.1" value="35" inputmode="decimal"></div>
+<div><label for="photoHeightMm">Photo height (mm)</label><input id="photoHeightMm" type="number" min="20" max="100" step="0.1" value="45" inputmode="decimal"></div>
+</div>
+<label for="printDpi">Print resolution</label><select id="printDpi"><option value="300">300 DPI — standard high-quality print</option><option value="600">600 DPI — higher-resolution print</option></select>
+<label for="printPaper">Print sheet paper</label><select id="printPaper"><option value="A4">A4 (210 × 297 mm)</option><option value="Letter">US Letter (8.5 × 11 in)</option></select>
+<p id="printPresetNote" class="print-help">No official physical-size preset selected. Custom dimensions are not an official compliance claim.</p>
+</div>
+<p id="outputPresetNotice" class="note">Select an exact route to see any verified digital output limits. Physical print sizes are not converted to pixels without a chosen DPI.</p>
 <div class="grid">
 <div><label for="width">Width (pixels)</label><input type="number" id="width" value="413" min="100" max="3000" inputmode="numeric"></div>
 <div><label for="height">Height (pixels)</label><input type="number" id="height" value="531" min="100" max="3000" inputmode="numeric"></div>
@@ -85,10 +108,16 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 </section>
 
 <section class="card">
-<h2>04. Download your photo</h2>
+<h2>05. Download your photo</h2>
 <p id="status" class="note" role="status" aria-live="polite">Upload a photo to begin. Your image is processed locally in this browser.</p>
 <canvas id="canvas" hidden></canvas>
 <button class="primary" id="download" type="button" disabled>Download JPG Photo</button>
+</section>
+<section class="card">
+<h2>06. Print-ready photo sheet</h2>
+<p id="printSheetSummary" class="note">Create a photo using a supported physical print route or custom print size to prepare an A4 or Letter PDF with repeated photos and trim marks.</p>
+<button class="secondary print-action" id="printSheet" type="button" disabled>Download print-ready PDF</button>
+<p class="print-help">When printing the PDF, select the same paper size and choose “Actual size” or “100%”. Turn off “Fit to page”, “Shrink”, and borderless enlargement. Measure one printed photo with a ruler before using it. Printer drivers and paper handling can still affect output.</p>
 </section>
 <p class="note">Privacy: this prototype processes the selected image locally in your browser; it does not send it to a server. It is a photo-sizing tool, not an AI background remover or official compliance checker. Requirements differ by document and country. Do not assume this output will be accepted; verify the latest official instructions before applying.</p>
 </main>
@@ -104,12 +133,18 @@ function updateRangeLabels(){
  $("horizontalValue").textContent = $("horizontal").value;
  $("verticalValue").textContent = $("vertical").value;
 }
-["zoom","horizontal","vertical"].forEach(id => $(id).addEventListener("input", updateRangeLabels));
+function invalidateOutput(){
+ outputReady=false; $("download").disabled=true; $("printSheet").disabled=true; canvas.hidden=true;
+ window.passportAiPrintConfig=null;
+}
+window.passportAiInvalidateOutput = invalidateOutput;
+["zoom","horizontal","vertical"].forEach(id => $(id).addEventListener("input", () => { updateRangeLabels(); invalidateOutput(); }));
+$("background").addEventListener("change", invalidateOutput);
 $("reset").addEventListener("click", () => {
  $("zoom").value = "1"; $("horizontal").value = "0"; $("vertical").value = "0";
  updateRangeLabels();
  $("status").textContent = "Framing reset. Select Create Photo to update your result.";
- outputReady = false; $("download").disabled = true;
+ invalidateOutput();
 });
 photo.addEventListener("change", () => {
  const file = photo.files && photo.files[0];
@@ -120,6 +155,10 @@ photo.addEventListener("change", () => {
  if (file.size > 15 * 1024 * 1024) {
   alert("Please select an image smaller than 15 MB."); photo.value = ""; return;
  }
+ invalidateOutput();
+ originalImage = null;
+ if (imageUrl) { URL.revokeObjectURL(imageUrl); imageUrl = null; }
+ preview.removeAttribute("src"); preview.style.display = "none";
  const nextUrl = URL.createObjectURL(file);
  const img = new Image();
  img.onload = () => {
@@ -127,7 +166,7 @@ photo.addEventListener("change", () => {
   imageUrl = nextUrl; originalImage = img; preview.src = imageUrl;
   preview.style.display = "block";
   $("status").textContent = "Photo loaded on this device. Adjust the framing, then create your photo.";
-  outputReady = false; $("download").disabled = true; canvas.hidden = true;
+  invalidateOutput();
  };
  img.onerror = () => { URL.revokeObjectURL(nextUrl); alert("This image could not be opened. Please try another photo."); };
  img.src = nextUrl;
@@ -135,9 +174,24 @@ photo.addEventListener("change", () => {
 
 $("process").addEventListener("click", () => {
  if (!originalImage) { alert("Please upload a photo first."); return; }
- const w = Number($("width").value), h = Number($("height").value);
- if (!Number.isInteger(w) || !Number.isInteger(h) || w < 100 || h < 100 || w > 3000 || h > 3000) {
-  alert("Enter whole-number dimensions between 100 and 3000 pixels."); return;
+ if (window.passportAiOfficialExportBlocked) { alert("This official route requires an original, unedited photo. Use the original image instead."); return; }
+ let w = Number($("width").value), h = Number($("height").value);
+ const physicalPrint = Boolean(window.passportAiPrintControlsEnabled);
+ if (physicalPrint) {
+  const photoWidthMm=Number($("photoWidthMm").value), photoHeightMm=Number($("photoHeightMm").value);
+  const dpi=Number($("printDpi").value), printPreset=window.passportAiPrintPreset || null;
+  const printCheck=window.passportAiValidatePrintDimensions(photoWidthMm,photoHeightMm,printPreset);
+  if (!printCheck.valid) { alert(printCheck.reason==="outside_official_range" ? "The selected photo size is outside this route official millimetre range." : "Enter a valid physical photo size between 20 and 100 mm."); return; }
+  w=window.passportAiMillimetresToPixels(photoWidthMm,dpi); h=window.passportAiMillimetresToPixels(photoHeightMm,dpi);
+  $("width").value=String(w); $("height").value=String(h);
+  window.passportAiPrintConfig={photoWidthMm,photoHeightMm,dpi,paper:$("printPaper").value};
+ } else window.passportAiPrintConfig=null;
+ const preset = window.passportAiOutputPreset || null;
+ const presetCheck = preset ? window.passportAiValidateOutputDimensions(w,h,preset) : {valid:true};
+ if (!Number.isInteger(w) || !Number.isInteger(h) || w < 100 || h < 100 || w > 3000 || h > 3000 || !presetCheck.valid) {
+  alert(presetCheck.reason==="wrong_aspect_ratio" ? "This route requires a square image." :
+   presetCheck.reason==="outside_allowed_range" ? "This route requires dimensions between 600 × 600 and 1200 × 1200 pixels." :
+   "Enter valid whole-number dimensions for the selected route."); return;
  }
  const backgrounds = {white:"#ffffff",lightgray:"#eeeeee",blue:"#e5efff"};
  canvas.width = w; canvas.height = h;
@@ -152,17 +206,262 @@ $("process").addEventListener("click", () => {
  canvas.hidden = false;
  $("status").textContent = "Photo created at " + w + " × " + h + " pixels. Review the crop before downloading.";
  outputReady = true; $("download").disabled = false;
+ $("printSheet").disabled = !(window.passportAiPrintControlsEnabled && window.passportAiPrintConfig);
 });
 $("download").addEventListener("click", () => {
  if (!outputReady || !canvas.width) return;
- canvas.toBlob(blob => {
+ const preset = window.passportAiOutputPreset || null;
+ const maxBytes = preset?.maxBytes || 0;
+ const encode = quality => canvas.toBlob(blob => {
   if (!blob) { alert("Unable to create JPG. Please try again."); return; }
+  if (maxBytes && blob.size > maxBytes && quality > 0.55) {
+   encode(Math.max(0.55,quality-0.05)); return;
+  }
+  if (maxBytes && blob.size > maxBytes) {
+   alert("The JPG is still larger than the official 240 KB limit. Try a simpler source photo; no file was downloaded."); return;
+  }
   const url = URL.createObjectURL(blob), link = document.createElement("a");
   link.href = url; link.download = "passport-ai-photo.jpg"; link.click();
   setTimeout(() => URL.revokeObjectURL(url),1500);
- },"image/jpeg",0.95);
+ },"image/jpeg",quality);
+ encode(0.92);
 });
 updateRangeLabels();
+</script>
+<script type="module">
+import { evaluateFacePhotoQuality } from "/lib/face-quality-policy.js";
+const button = document.getElementById("analyzeQuality");
+const status = document.getElementById("faceQualityStatus");
+const issuesList = document.getElementById("faceQualityIssues");
+let detectorPromise;
+async function getDetector() {
+  if (!detectorPromise) {
+    detectorPromise = (async () => {
+      const { FilesetResolver, FaceDetector } = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs");
+      const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm");
+      return FaceDetector.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite", delegate: "CPU" },
+        runningMode: "IMAGE", minDetectionConfidence: 0.5, minSuppressionThreshold: 0.3
+      });
+    })().catch(error => { detectorPromise = null; throw error; });
+  }
+  return detectorPromise;
+}
+function measureImage(image) {
+  const side = 256, scale = Math.min(1, side / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const gray = new Float32Array(canvas.width * canvas.height);
+  let total = 0, clipped = 0, borderTotal = 0, borderN = 0;
+  const borderValues = [];
+  for (let y=0, n=0; y<canvas.height; y++) for (let x=0; x<canvas.width; x++,n++) {
+    const p=n*4, red=data[p], green=data[p+1], blue=data[p+2];
+    const lum=0.2126*red+0.7152*green+0.0722*blue;
+    gray[n]=lum; total+=lum;
+    if (lum<10 || lum>245) clipped++;
+    if (x<canvas.width*0.08 || x>canvas.width*0.92 || y<canvas.height*0.08 || y>canvas.height*0.92) {
+      borderValues.push(red,green,blue); borderTotal += red+green+blue; borderN+=3;
+    }
+  }
+  let lap=0, lapSq=0, count=0;
+  for(let y=1;y<canvas.height-1;y++) for(let x=1;x<canvas.width-1;x++){
+    const k=y*canvas.width+x, v=gray[k-1]+gray[k+1]+gray[k-canvas.width]+gray[k+canvas.width]-4*gray[k];
+    lap+=v; lapSq+=v*v; count++;
+  }
+  const variance=count?Math.max(0,lapSq/count-Math.pow(lap/count,2)):0;
+  const mean=borderN?borderTotal/borderN:0;
+  let spread=0;
+  for(const v of borderValues) spread+=Math.pow(v-mean,2);
+  const std=borderN?Math.sqrt(spread/borderN):255;
+  return {
+    sharpnessScore: Math.max(0,Math.min(1,variance/500)),
+    brightnessScore: (total/gray.length)/255,
+    clippingRatio: clipped/gray.length,
+    backgroundUniformityScore: Math.max(0,Math.min(1,1-std/110))
+  };
+}
+button.addEventListener("click", async () => {
+  const image = document.getElementById("preview");
+  if (!image || !image.complete || !image.naturalWidth) { status.textContent="Please upload a photo first."; return; }
+  button.disabled=true; issuesList.replaceChildren();
+  status.textContent="Loading the on-device face detector and checking this photo… First use may take a little time.";
+  try {
+    const detector=await getDetector();
+    const found=detector.detect(image);
+    const detections=found?.detections || [];
+    const metrics=measureImage(image);
+    const analysis={faceCount:detections.length,...metrics};
+    if(detections.length===1){
+      const b=detections[0].boundingBox;
+      analysis.faceBox={x:b.originX/image.naturalWidth,y:b.originY/image.naturalHeight,width:b.width/image.naturalWidth,height:b.height/image.naturalHeight};
+    }
+    const result=evaluateFacePhotoQuality(analysis);
+    status.textContent=result.status==="advisory_checks_passed"
+      ?"Basic advisory checks passed. Still review the photo and official document instructions."
+      : "Review suggested: "+result.issues.length+" item(s) need attention or could not be fully assessed.";
+    const messages={
+      no_face_detected:"No face detected — try a clear, front-facing photo.",
+      multiple_faces_detected:"Multiple faces detected — use a single-person photo if required.",
+      face_may_be_too_small:"Face may be too small — move the camera closer.",
+      face_may_be_too_large:"Face may be too large — leave more space around the head.",
+      face_may_be_off_center:"Face may be off-centre — adjust camera framing.",
+      possible_blur:"Possible blur — use steady camera and sharper focus.",
+      possibly_too_dark:"Photo may be too dark — use even lighting.",
+      possibly_overexposed:"Photo may be overexposed — avoid washed-out light.",
+      highlight_or_shadow_clipping:"Some highlights/shadows may lose detail.",
+      background_may_be_uneven:"Background may be uneven — use a plain, evenly lit backdrop.",
+      sharpness_not_assessed:"Sharpness could not be assessed.",
+      exposure_not_assessed:"Exposure could not be assessed.",
+      background_not_assessed:"Background could not be assessed."
+    };
+    for(const issue of result.issues){
+      const li=document.createElement("li"); li.textContent=messages[issue] || issue; issuesList.append(li);
+    }
+    if(!result.issues.length){
+      const li=document.createElement("li"); li.textContent="No obvious issue found by these rough checks."; issuesList.append(li);
+    }
+  } catch(error) {
+    status.textContent="Analysis could not run. Check your internet connection and try again. The photo was not uploaded by PassportAI.";
+    const li=document.createElement("li"); li.textContent="Technical detail: "+(error?.message || "unknown error"); issuesList.append(li);
+  } finally { button.disabled=false; }
+});
+document.getElementById("photo").addEventListener("change", () => {
+  button.disabled=!(document.getElementById("photo").files?.length);
+  status.textContent="Photo selected. Tap Analyze when ready.";
+  issuesList.replaceChildren();
+});
+</script>
+<script type="module">
+import { getDocumentRule, getAvailableRoutes } from "/lib/document-rules.js";
+import { getOutputPreset, validateOutputDimensions } from "/lib/output-presets.js";
+import { getPrintPreset, validatePrintDimensions, millimetresToPixels } from "/lib/print-presets.js";
+import { createPrintSheetPdf } from "/lib/print-pdf.js";
+import { calculatePrintLayout } from "/lib/print-layout.js";
+window.passportAiValidateOutputDimensions = validateOutputDimensions;
+window.passportAiValidatePrintDimensions = validatePrintDimensions;
+window.passportAiMillimetresToPixels = millimetresToPixels;
+const countrySelect=document.getElementById("country");
+const routeSelect=document.getElementById("applicationRoute");
+const panel=document.getElementById("officialRequirements");
+const processButton=document.getElementById("process");
+const downloadButton=document.getElementById("download");
+function renderRule(){
+ window.passportAiInvalidateOutput?.();
+ const routeChosen=Boolean(routeSelect.value);
+ const rule=getDocumentRule(countrySelect.value,routeSelect.value);
+ const preset=getOutputPreset(countrySelect.value,routeSelect.value);
+ const printPreset=getPrintPreset(countrySelect.value,routeSelect.value);
+ const backgroundSelect=document.getElementById("background");
+ const allowedBackgrounds=preset?.allowedBackgrounds || printPreset?.allowedBackgrounds || (routeSelect.value==="custom" ? ["white","lightgray","blue"] : ["white"]);
+ for(const option of backgroundSelect.options) option.disabled=!allowedBackgrounds.includes(option.value);
+ if(!allowedBackgrounds.includes(backgroundSelect.value)) backgroundSelect.value="white";
+ window.passportAiOutputPreset=preset;
+ window.passportAiPrintPreset=printPreset;
+ window.passportAiPrintControlsEnabled=Boolean(printPreset || routeSelect.value==="custom");
+ window.passportAiPrintConfig=null;
+ const printControls=document.getElementById("printControls");
+ const printButton=document.getElementById("printSheet");
+ const printPresetNote=document.getElementById("printPresetNote");
+ printControls.hidden=!window.passportAiPrintControlsEnabled;
+ printButton.disabled=true;
+ if(window.passportAiPrintControlsEnabled){
+  const pw=document.getElementById("photoWidthMm"), ph=document.getElementById("photoHeightMm");
+  pw.min=printPreset?String(printPreset.minWidthMm):"20"; pw.max=printPreset?String(printPreset.maxWidthMm):"100";
+  ph.min=printPreset?String(printPreset.minHeightMm):"20"; ph.max=printPreset?String(printPreset.maxHeightMm):"100";
+  pw.value=String(printPreset ? printPreset.preferredWidthMm : 35); ph.value=String(printPreset ? printPreset.preferredHeightMm : 45);
+  pw.step=printPreset && printPreset.minWidthMm===printPreset.maxWidthMm ? "1" : "0.1";
+  ph.step=printPreset && printPreset.minHeightMm===printPreset.maxHeightMm ? "1" : "0.1";
+  if(printPresetNote) printPresetNote.textContent=printPreset
+   ? printPreset.label+". Choose 300 or 600 DPI. Stay within the displayed physical-size range and verify face size and framing manually."
+   : "Custom print dimensions are for personal/non-official use. PassportAI does not claim these meet any government requirement.";
+ }
+ document.querySelectorAll("#width,#height").forEach(field=>field.disabled=window.passportAiPrintControlsEnabled);
+ const notice=document.getElementById("outputPresetNotice");
+ const widthInput=document.getElementById("width"), heightInput=document.getElementById("height");
+ widthInput.min=preset?String(preset.minWidth):"100"; widthInput.max=preset?String(preset.maxWidth):"3000";
+ heightInput.min=preset?String(preset.minHeight):"100"; heightInput.max=preset?String(preset.maxHeight):"3000";
+ if(preset){
+  widthInput.value=String(preset.preferredWidth); heightInput.value=String(preset.preferredHeight);
+  if(notice) notice.textContent="Verified digital preset: square JPEG, 600–1,200 px per side, maximum 240 KB. PassportAI starts at 600 × 600 and compresses the JPG if needed. Exact visa category rules may differ.";
+ } else if(notice) {
+  notice.textContent="No automatic digital pixel preset for this route. Select a verified physical print route or use custom sizing. Unknown requirements are not guessed.";
+ }
+ window.passportAiOfficialExportBlocked=Boolean(rule?.officialExportBlocked);
+ const canvas=document.getElementById("canvas");
+ canvas.hidden=true; downloadButton.disabled=true;
+ panel.replaceChildren();
+ const title=document.createElement("strong");
+ if(!rule){
+  title.textContent=routeSelect.value==="custom"?"Custom photo — no official compliance claim":"Official requirements not verified for this route";
+  panel.append(title);
+  const p=document.createElement("p"); p.className="note";
+  p.textContent=routeSelect.value==="custom"?"Use custom sizing for personal/non-official use. Do not assume acceptance by a passport or visa authority.":"Choose a listed route or check the issuing authority's current official instructions. PassportAI will not guess dimensions from another country.";
+  panel.append(p);
+  window.passportAiOfficialExportBlocked=!routeChosen || routeSelect.value!=="custom";
+  processButton.disabled=!routeChosen || routeSelect.value!=="custom";
+  processButton.textContent=routeChosen?"Create Photo":"Choose a route first";
+  return;
+ }
+ title.textContent=rule.label; panel.append(title);
+ const list=document.createElement("ul");
+ for(const item of rule.requirements){const li=document.createElement("li");li.textContent=item;list.append(li);}
+ panel.append(list);
+ const warning=document.createElement("p"); warning.className="policy-warning"; warning.textContent=rule.warning; panel.append(warning);
+ const source=document.createElement("a"); source.href=rule.sourceUrl; source.target="_blank"; source.rel="noopener noreferrer"; source.textContent="Official source: "+rule.sourceLabel; panel.append(source);
+ const verified=document.createElement("p"); verified.className="note"; verified.textContent="Source checked: "+rule.verifiedOn+". Rules can change; confirm before applying."; panel.append(verified);
+ window.passportAiOfficialExportBlocked=Boolean(rule.officialExportBlocked);
+ processButton.disabled=!routeChosen || window.passportAiOfficialExportBlocked;
+ processButton.textContent=window.passportAiOfficialExportBlocked?"Official export disabled — use original photo":"Create Photo";
+ downloadButton.disabled=true;
+ if(window.passportAiOfficialExportBlocked){
+  const p=document.createElement("p");p.className="policy-warning";p.textContent="This authority requires an original/unaltered photo for this route. PassportAI will not create an edited export for official submission.";panel.append(p);
+ }
+}
+function updateRoutes(){
+ const routes=getAvailableRoutes(countrySelect.value);
+ routeSelect.replaceChildren();
+ const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent=routes.length?"Select exact application route":"No verified routes for this country";routeSelect.append(placeholder);
+ for(const item of routes){const option=document.createElement("option");option.value=item.route;option.textContent=item.label;routeSelect.append(option);}
+ const custom=document.createElement("option");custom.value="custom";custom.textContent="Custom photo (non-official use)";routeSelect.append(custom);
+ renderRule();
+}
+countrySelect.addEventListener("change",updateRoutes);
+routeSelect.addEventListener("change",renderRule);
+["photoWidthMm","photoHeightMm","printDpi","printPaper"].forEach(id=>{
+ const field=document.getElementById(id);
+ field.addEventListener("input",invalidatePrintResult);
+ field.addEventListener("change",invalidatePrintResult);
+});
+function invalidatePrintResult(){
+ window.passportAiPrintConfig=null;
+ document.getElementById("printSheet").disabled=true;
+ document.getElementById("download").disabled=true;
+ document.getElementById("canvas").hidden=true;
+}
+document.getElementById("printSheet").addEventListener("click",async()=>{
+ const config=window.passportAiPrintConfig, imageCanvas=document.getElementById("canvas");
+ if(!config || !imageCanvas.width || window.passportAiOfficialExportBlocked) return;
+ const button=document.getElementById("printSheet"), status=document.getElementById("status");
+ button.disabled=true; button.textContent="Preparing print PDF…";
+ try{
+  const blob=await new Promise((resolve,reject)=>imageCanvas.toBlob(value=>value?resolve(value):reject(new Error("Could not encode the photo.")),"image/jpeg",0.96));
+  const jpegBytes=new Uint8Array(await blob.arrayBuffer());
+  const layout=calculatePrintLayout({photoWidthMm:config.photoWidthMm,photoHeightMm:config.photoHeightMm,paper:config.paper});
+  const pdf=createPrintSheetPdf({jpegBytes,imageWidth:imageCanvas.width,imageHeight:imageCanvas.height,photoWidthMm:config.photoWidthMm,photoHeightMm:config.photoHeightMm,paper:config.paper});
+  const pdfBlob=new Blob([pdf],{type:"application/pdf"});
+  const url=URL.createObjectURL(pdfBlob), link=document.createElement("a");
+  link.href=url; link.download="passport-ai-"+config.paper.toLowerCase()+"-print-sheet.pdf"; link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  status.textContent="Print-ready PDF prepared. Print at Actual size / 100% on "+config.paper+" paper; do not use Fit to page.";
+  document.getElementById("printSheetSummary").textContent="PDF page: "+config.paper+". Photo: "+config.photoWidthMm+" × "+config.photoHeightMm+" mm at "+config.dpi+" DPI ("+imageCanvas.width+" × "+imageCanvas.height+" px). "+layout.count+" copies arranged "+layout.columns+" across × "+layout.rows+" down, with trim marks.";
+ }catch(error){ status.textContent="Print PDF could not be created: "+(error?.message||"unknown error"); }
+ finally{ button.disabled=false; button.textContent="Download print-ready PDF"; }
+});
+updateRoutes();
 </script>
 </body>
 </html>
