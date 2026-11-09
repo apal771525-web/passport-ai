@@ -137,6 +137,7 @@ function invalidateOutput(){
  outputReady=false; $("download").disabled=true; $("printSheet").disabled=true; canvas.hidden=true;
  window.passportAiPrintConfig=null;
 }
+window.passportAiInvalidateOutput = invalidateOutput;
 ["zoom","horizontal","vertical"].forEach(id => $(id).addEventListener("input", () => { updateRangeLabels(); invalidateOutput(); }));
 $("background").addEventListener("change", invalidateOutput);
 $("reset").addEventListener("click", () => {
