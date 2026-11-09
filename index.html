@@ -350,9 +350,15 @@ const panel=document.getElementById("officialRequirements");
 const processButton=document.getElementById("process");
 const downloadButton=document.getElementById("download");
 function renderRule(){
+ window.passportAiInvalidateOutput?.();
+ const routeChosen=Boolean(routeSelect.value);
  const rule=getDocumentRule(countrySelect.value,routeSelect.value);
  const preset=getOutputPreset(countrySelect.value,routeSelect.value);
  const printPreset=getPrintPreset(countrySelect.value,routeSelect.value);
+ const backgroundSelect=document.getElementById("background");
+ const allowedBackgrounds=preset?.allowedBackgrounds || printPreset?.allowedBackgrounds || (routeSelect.value==="custom" ? ["white","lightgray","blue"] : ["white"]);
+ for(const option of backgroundSelect.options) option.disabled=!allowedBackgrounds.includes(option.value);
+ if(!allowedBackgrounds.includes(backgroundSelect.value)) backgroundSelect.value="white";
  window.passportAiOutputPreset=preset;
  window.passportAiPrintPreset=printPreset;
  window.passportAiPrintControlsEnabled=Boolean(printPreset || routeSelect.value==="custom");
@@ -395,9 +401,9 @@ function renderRule(){
   const p=document.createElement("p"); p.className="note";
   p.textContent=routeSelect.value==="custom"?"Use custom sizing for personal/non-official use. Do not assume acceptance by a passport or visa authority.":"Choose a listed route or check the issuing authority's current official instructions. PassportAI will not guess dimensions from another country.";
   panel.append(p);
-  window.passportAiOfficialExportBlocked=false;
-  processButton.disabled=false;
-  processButton.textContent="Create Photo";
+  window.passportAiOfficialExportBlocked=!routeChosen || routeSelect.value!=="custom";
+  processButton.disabled=!routeChosen || routeSelect.value!=="custom";
+  processButton.textContent=routeChosen?"Create Photo":"Choose a route first";
   return;
  }
  title.textContent=rule.label; panel.append(title);
@@ -408,7 +414,7 @@ function renderRule(){
  const source=document.createElement("a"); source.href=rule.sourceUrl; source.target="_blank"; source.rel="noopener noreferrer"; source.textContent="Official source: "+rule.sourceLabel; panel.append(source);
  const verified=document.createElement("p"); verified.className="note"; verified.textContent="Source checked: "+rule.verifiedOn+". Rules can change; confirm before applying."; panel.append(verified);
  window.passportAiOfficialExportBlocked=Boolean(rule.officialExportBlocked);
- processButton.disabled=window.passportAiOfficialExportBlocked;
+ processButton.disabled=!routeChosen || window.passportAiOfficialExportBlocked;
  processButton.textContent=window.passportAiOfficialExportBlocked?"Official export disabled — use original photo":"Create Photo";
  downloadButton.disabled=true;
  if(window.passportAiOfficialExportBlocked){
