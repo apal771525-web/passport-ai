@@ -71,3 +71,16 @@ The suite covers method and content-type rejection, same-origin checks, malforme
 - Keep this work on `backend-blueprint-no-api-keys` until reviewed.
 - Do not merge or promote to production without explicit approval.
 - No provider credentials or API calls are part of this branch.
+
+
+## Verified document rules — implemented in preview UI
+
+`lib/document-rules.js` contains a limited official-source registry for selected India, U.S., UK, Canada and Australia passport/visa routes. Each route has its own source URL and checked date; unsupported combinations return no rule instead of guessed dimensions.
+
+- The preview UI displays the selected route's official-source summary and warning.
+- Routes whose authority requires an original/unaltered photo block PassportAI crop/resize export for official use.
+- India coverage is limited to the under-4 printed photo route and the ordinary adult PSK/POPSK photo-not-required instruction.
+- U.S. visa dimensions are limited to the State Department's generic digital-image specifications; visa-specific workflow requirements may differ.
+- Australia guidance recommends a professional provider and warns against mobile photo apps.
+- This is a limited rules snapshot, not comprehensive global coverage or an acceptance guarantee. Recheck sources before release.
+- Tests validate lookup, route isolation, no-fallback behavior, and export-block flags; they do not certify legal interpretation.
