@@ -5,6 +5,7 @@ import { getOutputPreset, validateOutputDimensions } from "../../lib/output-pres
 test("US digital visa route gets only its documented square JPEG preset", () => {
   const preset = getOutputPreset("United States", "visa-digital");
   assert.equal(preset.format, "image/jpeg");
+  assert.deepEqual(preset.allowedBackgrounds, ["white"]);
   assert.equal(preset.preferredWidth, 600);
   assert.equal(preset.preferredHeight, 600);
   assert.equal(preset.maxBytes, 240000);
