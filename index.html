@@ -154,6 +154,10 @@ photo.addEventListener("change", () => {
  if (file.size > 15 * 1024 * 1024) {
   alert("Please select an image smaller than 15 MB."); photo.value = ""; return;
  }
+ invalidateOutput();
+ originalImage = null;
+ if (imageUrl) { URL.revokeObjectURL(imageUrl); imageUrl = null; }
+ preview.removeAttribute("src"); preview.style.display = "none";
  const nextUrl = URL.createObjectURL(file);
  const img = new Image();
  img.onload = () => {
