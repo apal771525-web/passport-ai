@@ -22,7 +22,7 @@ function webpVp8x(width = 600, height = 800) {
   return b;
 }
 function jpeg(width = 600, height = 800) {
-  const b = Buffer.alloc(4 + 2 + 2 + 7);
+  const b = Buffer.alloc(24);
   let i = 0;
   b[i++] = 0xff; b[i++] = 0xd8;
   b[i++] = 0xff; b[i++] = 0xc0;
@@ -55,7 +55,7 @@ test("rejects declared MIME mismatch", () => {
   assert.equal(validateImageBuffer(png(), "image/jpeg").code, "DECLARED_MIME_MISMATCH");
 });
 test("rejects malformed/truncated JPEG and WebP headers", () => {
-  assert.equal(validateImageBuffer(Buffer.from([0xff,0xd8,0xff,0xc0,0,7]), "image/jpeg").code, "INVALID_IMAGE_HEADER");
+  assert.equal(validateImageBuffer(Buffer.from([0xff,0xd8,0xff,0xc0,0,7,...Array(18).fill(0)]), "image/jpeg").code, "INVALID_IMAGE_HEADER");
   const b = Buffer.alloc(30);
   b.write("RIFF", 0, "ascii"); b.write("WEBP", 8, "ascii"); b.write("NOPE", 12, "ascii");
   assert.equal(validateImageBuffer(b, "image/webp").code, "INVALID_IMAGE_HEADER");
