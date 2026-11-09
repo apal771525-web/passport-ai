@@ -133,12 +133,17 @@ function updateRangeLabels(){
  $("horizontalValue").textContent = $("horizontal").value;
  $("verticalValue").textContent = $("vertical").value;
 }
-["zoom","horizontal","vertical"].forEach(id => $(id).addEventListener("input", updateRangeLabels));
+function invalidateOutput(){
+ outputReady=false; $("download").disabled=true; $("printSheet").disabled=true; canvas.hidden=true;
+ window.passportAiPrintConfig=null;
+}
+["zoom","horizontal","vertical"].forEach(id => $(id).addEventListener("input", () => { updateRangeLabels(); invalidateOutput(); }));
+$("background").addEventListener("change", invalidateOutput);
 $("reset").addEventListener("click", () => {
  $("zoom").value = "1"; $("horizontal").value = "0"; $("vertical").value = "0";
  updateRangeLabels();
  $("status").textContent = "Framing reset. Select Create Photo to update your result.";
- outputReady = false; $("download").disabled = true;
+ invalidateOutput();
 });
 photo.addEventListener("change", () => {
  const file = photo.files && photo.files[0];
@@ -156,7 +161,7 @@ photo.addEventListener("change", () => {
   imageUrl = nextUrl; originalImage = img; preview.src = imageUrl;
   preview.style.display = "block";
   $("status").textContent = "Photo loaded on this device. Adjust the framing, then create your photo.";
-  outputReady = false; $("download").disabled = true; canvas.hidden = true;
+  invalidateOutput();
  };
  img.onerror = () => { URL.revokeObjectURL(nextUrl); alert("This image could not be opened. Please try another photo."); };
  img.src = nextUrl;
