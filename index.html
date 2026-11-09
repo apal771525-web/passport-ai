@@ -1,168 +1,177 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101827">
-<meta name="description" content="Create a document photo with adjustable sizing and crop controls.">
-<title>Passport AI | Photo Maker</title>
+<meta name="description" content="Prepare document photos with AI background segmentation, crop controls and custom export dimensions.">
+<title>PassportAI | Photo Studio</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif;background:#f4f6fa;color:#172033}
-header{background:#101827;color:#fff;padding:18px 20px;display:flex;justify-content:space-between;align-items:center}
-.logo{font-size:23px;font-weight:800}.logo span{color:#83adff}
-header small{color:#c2ccda}
-main{max-width:760px;margin:auto;padding:18px 14px 30px}
-.hero{text-align:center;padding:25px 8px 18px}
-.hero h1{font-size:clamp(27px,6vw,36px);margin:5px 0 10px}
-.hero p{color:#667085;line-height:1.6;margin:0}
-.card{background:#fff;padding:20px;border-radius:17px;margin:16px 0;box-shadow:0 5px 24px #1522380b}
-h2{font-size:19px;margin:0 0 15px}
-label{display:block;font-weight:650;margin:14px 0 8px}
-input,select{width:100%;padding:13px;border:1px solid #dce2eb;border-radius:10px;background:#fff;font-size:16px;color:#172033}
-.upload{border:2px dashed #a7b8d2;border-radius:14px;padding:25px 14px;text-align:center;background:#f8faff;cursor:pointer;line-height:1.5}
-.upload strong{display:block;margin-bottom:6px;color:#234da6}
-.preview{width:100%;max-height:310px;object-fit:contain;display:none;margin:15px auto 0;background:#eef1f5;border-radius:10px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.range-row{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px}
-.range-row output{font-weight:700;color:#2459d3}
-input[type=range]{padding:0;accent-color:#2459d3}
-button{width:100%;border:0;padding:15px;border-radius:11px;font-size:16px;font-weight:700;cursor:pointer;margin-top:14px}
-.primary{background:#2459d3;color:#fff}.secondary{background:#eaf0fc;color:#234da6}
-button:disabled{opacity:.45;cursor:not-allowed}
-.note{color:#667085;font-size:13px;line-height:1.6}
-#canvas{display:block;max-width:100%;height:auto;margin:12px auto;border:1px solid #e4e7ec;border-radius:8px}
-#canvas[hidden]{display:none}
-#status{padding:10px 12px;background:#f7f9fc;border-radius:9px}
-footer{text-align:center;padding:20px;color:#667085;font-size:13px}
-@media(max-width:420px){.card{padding:16px}.grid{gap:9px}}
+:root{color-scheme:light;--navy:#101827;--ink:#182338;--muted:#667085;--blue:#2858c8;--line:#e4e9f1;--surface:#fff;--bg:#f3f5f9}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,-apple-system,Arial,sans-serif}
+header{background:var(--navy);color:#fff;padding:15px max(18px,calc((100vw - 900px)/2));display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:23px;font-weight:850;letter-spacing:-.7px}.logo span{color:#83adff}header small{color:#c5cede}
+main{width:min(900px,100%);margin:auto;padding:18px 14px 38px}.hero{text-align:center;padding:22px 8px 18px}.eyebrow{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;font-weight:800;color:var(--blue)}h1{font-size:clamp(28px,6vw,42px);line-height:1.12;letter-spacing:-1.2px;margin:8px 0 12px}.hero p{max-width:620px;margin:auto;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;margin:15px 0;box-shadow:0 8px 28px #17203308}
+h2{font-size:19px;letter-spacing:-.3px;margin:0 0 15px}.step{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:1px;margin-right:7px}
+label{display:block;font-weight:700;font-size:14px;margin:14px 0 7px}select,input[type=number]{width:100%;padding:13px;border:1px solid #d7deea;border-radius:11px;background:#fff;color:var(--ink);font-size:16px;min-height:48px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.upload{display:block;border:2px dashed #aabbd4;border-radius:14px;padding:22px 14px;text-align:center;background:#f8faff;cursor:pointer}.upload strong{display:block;color:#234da6;font-size:17px;margin-bottom:4px}.upload input{display:none}
+button{border:0;border-radius:11px;padding:14px 16px;font-size:15px;font-weight:750;cursor:pointer;min-height:48px}.primary{background:var(--blue);color:white;width:100%}.secondary{background:#edf2fc;color:#244da5}.secondary:disabled,.primary:disabled{opacity:.5;cursor:not-allowed}
+.preview-wrap{background:#f4f6fa;border:1px solid var(--line);border-radius:14px;padding:10px;margin-top:12px;text-align:center}.preview{max-width:100%;max-height:300px;object-fit:contain;display:none}.result-wrap{background:repeating-conic-gradient(#eef1f5 0 25%,#fff 0 50%) 50%/18px 18px;border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:12px;text-align:center}canvas{display:block;max-width:100%;height:auto;margin:0 auto;border-radius:5px}canvas[hidden]{display:none}
+.range-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.range-head output{color:var(--blue);font-weight:800;font-variant-numeric:tabular-nums}input[type=range]{width:100%;accent-color:var(--blue);margin:4px 0 0}
+.note{font-size:13px;color:var(--muted);line-height:1.55}.notice{border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;background:#fff7e8;border:1px solid #f1d8a7;color:#684b13;margin:12px 0}.status{background:#f5f7fb;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:13px;color:#46536a;min-height:44px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.actions button{width:100%}.hidden{display:none!important}.tag{display:inline-block;background:#eaf1ff;color:#234da6;border-radius:30px;padding:4px 9px;font-size:11px;font-weight:800}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}
+@media(max-width:480px){.card{padding:16px}.grid{gap:9px}.actions{grid-template-columns:1fr}.hero{padding-top:15px}}
 </style>
 </head>
 <body>
 <header><div class="logo">Passport<span>AI</span></div><small>Photo Studio</small></header>
 <main>
-<section class="hero">
-<h1>Your Identity. Perfectly Framed.</h1>
-<p>Prepare a document photo on your device with adjustable crop and pixel dimensions.</p>
-</section>
+<section class="hero"><div class="eyebrow">Smart document photo workspace</div><h1>Your Identity. Perfectly Framed.</h1><p>Prepare a carefully framed photo with optional AI background separation, document presets and high-quality export.</p></section>
 
 <section class="card">
-<h2>01. Select your document</h2>
-<label for="document">Document type</label>
-<select id="document">
-<option>Passport Photo</option><option>Visa Photo</option><option>ID Card Photo</option><option>Custom Photo</option>
-</select>
-<label for="country">Country / Region</label>
-<select id="country">
-<option value="">Select country</option><option>India</option><option>United States</option><option>United Kingdom</option><option>Canada</option><option>Australia</option><option>Other</option>
-</select>
-<p class="note">These selections are for your reference only. Verified country- and document-specific rules are not available in this prototype.</p>
-</section>
-
-<section class="card">
-<h2>02. Upload your photo</h2>
-<label class="upload" for="photo"><strong>＋ Choose your selfie</strong>Tap to select a JPG, PNG or WebP image from your phone.<input type="file" id="photo" accept="image/jpeg,image/png,image/webp" hidden></label>
-<img id="preview" class="preview" alt="Your uploaded photo preview">
-<p class="note">Use a clear, front-facing photo with even lighting. Keep your full head visible; check the crop before downloading.</p>
-</section>
-
-<section class="card">
-<h2>03. Adjust size and framing</h2>
+<h2><span class="step">01</span>Choose your document</h2>
 <div class="grid">
-<div><label for="width">Width (pixels)</label><input type="number" id="width" value="413" min="100" max="3000" inputmode="numeric"></div>
-<div><label for="height">Height (pixels)</label><input type="number" id="height" value="531" min="100" max="3000" inputmode="numeric"></div>
+<div><label for="document">Document type</label><select id="document"><option value="passport">Passport photo</option><option value="visa">Visa photo</option><option value="id">ID card photo</option><option value="custom">Custom photo</option></select></div>
+<div><label for="country">Country / region</label><select id="country"><option value="">Choose country</option><option value="us">United States</option><option value="uk">United Kingdom</option><option value="ca">Canada</option><option value="india">India</option><option value="schengen">Schengen area</option><option value="other">Other</option></select></div>
 </div>
-<label for="background">Background colour</label>
-<select id="background"><option value="white">White</option><option value="lightgray">Light gray</option><option value="blue">Light blue</option></select>
-<label for="zoom">Zoom <span class="range-row"><span></span><output id="zoomValue">1.00×</output></span></label>
-<input type="range" id="zoom" min="1" max="2.5" step="0.01" value="1">
-<label for="horizontal">Horizontal position <span class="range-row"><span></span><output id="horizontalValue">0</output></span></label>
-<input type="range" id="horizontal" min="-100" max="100" step="1" value="0">
-<label for="vertical">Vertical position <span class="range-row"><span></span><output id="verticalValue">0</output></span></label>
-<input type="range" id="vertical" min="-100" max="100" step="1" value="0">
-<button class="secondary" id="reset" type="button">Reset framing</button>
-<button class="primary" id="process" type="button">Create Photo</button>
+<p class="note" id="presetNote">Choose a country and document type to see the available reference preset. Always confirm the exact rules on the issuing authority's website.</p>
 </section>
 
 <section class="card">
-<h2>04. Download your photo</h2>
-<p id="status" class="note" role="status" aria-live="polite">Upload a photo to begin. Your image is processed locally in this browser.</p>
-<canvas id="canvas" hidden></canvas>
-<button class="primary" id="download" type="button" disabled>Download JPG Photo</button>
+<h2><span class="step">02</span>Upload your photo</h2>
+<label class="upload" for="photo"><strong>＋ Choose your photo</strong>Tap to select a JPG, PNG or WebP image from your phone.<input type="file" id="photo" accept="image/jpeg,image/png,image/webp"></label>
+<div class="preview-wrap"><img id="preview" class="preview" alt="Original uploaded photo"><p id="uploadHint" class="note">Use a recent, clear, front-facing photo with your full head and shoulders visible.</p></div>
 </section>
-<p class="note">Privacy: this prototype processes the selected image locally in your browser; it does not send it to a server. It is a photo-sizing tool, not an AI background remover or official compliance checker. Requirements differ by document and country. Do not assume this output will be accepted; verify the latest official instructions before applying.</p>
+
+<section class="card">
+<h2><span class="step">03</span>AI background & framing</h2>
+<label for="backgroundMode">Background processing</label>
+<select id="backgroundMode"><option value="ai">AI remove background + white background</option><option value="original">Keep original background (crop only)</option></select>
+<p class="note">AI segmentation separates the person from the background. It does not retouch, reshape or beautify the face. Hair edges may need manual review.</p>
+<div class="grid">
+<div><label for="width">Output width (px)</label><input id="width" type="number" value="600" min="100" max="3000" inputmode="numeric"></div>
+<div><label for="height">Output height (px)</label><input id="height" type="number" value="600" min="100" max="3000" inputmode="numeric"></div>
+</div>
+<label for="backgroundColor">New background colour</label><select id="backgroundColor"><option value="#ffffff">White</option><option value="#f7f7f2">Off-white</option><option value="#eeeeee">Light grey</option><option value="#dce8f7">Pale blue (only if accepted)</option></select>
+<label for="zoom"><span class="range-head"><span>Zoom</span><output id="zoomValue">1.00×</output></span></label><input id="zoom" type="range" min="1" max="2.5" step=".01" value="1">
+<label for="horizontal"><span class="range-head"><span>Horizontal position</span><output id="horizontalValue">0</output></span></label><input id="horizontal" type="range" min="-100" max="100" value="0">
+<label for="vertical"><span class="range-head"><span>Vertical position</span><output id="verticalValue">0</output></span></label><input id="vertical" type="range" min="-100" max="100" value="0">
+<div class="actions"><button class="secondary" id="reset" type="button">Reset framing</button><button class="primary" id="process" type="button">Create photo</button></div>
+</section>
+
+<section class="card">
+<h2><span class="step">04</span>Review & download</h2>
+<div id="status" class="status" role="status" aria-live="polite">Upload a photo to begin. AI background processing runs in your browser after the model loads.</div>
+<div class="result-wrap"><canvas id="canvas" hidden></canvas><p id="resultHint" class="note">Your finished photo will appear here.</p></div>
+<div class="actions"><button class="secondary" id="downloadPng" type="button" disabled>Download PNG</button><button class="primary" id="downloadJpg" type="button" disabled>Download JPG</button></div>
+</section>
+<div class="notice"><strong>Important — official photo rules:</strong> Some authorities prohibit digital edits. US passport and visa rules restrict digital alteration; UK visa photos must not be altered; Canadian passport photos must remain completely unaltered, including cropping and background changes. PassportAI disables processing for UK visa and Canadian passport selections, and keeps the original background for US selections. Always check the exact official rules: <a href="https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/photos.html" target="_blank" rel="noopener">US visa</a> · <a href="https://travel.state.gov/en/passports/apply/help/photos.html" target="_blank" rel="noopener">US passport</a> · <a href="https://www.gov.uk/guidance/how-to-take-a-photo-for-a-visa-application-or-permission" target="_blank" rel="noopener">UK visa</a> · <a href="https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/photos.html" target="_blank" rel="noopener">Canada passport</a>. No tool can guarantee acceptance.</div>
+<p class="note">Privacy: this version processes your selected image locally in your browser. The AI model is downloaded from a public CDN; your photo is not uploaded to PassportAI servers by this page. Do not use this prototype as a substitute for the official photo checker.</p>
 </main>
-<footer>© 2026 Passport AI. All Rights Reserved.</footer>
+<footer>© 2026 PassportAI. All Rights Reserved.</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
 <script>
-const $ = id => document.getElementById(id);
-const photo = $("photo"), preview = $("preview"), canvas = $("canvas");
-const ctx = canvas.getContext("2d");
-let originalImage = null, imageUrl = null, outputReady = false;
-
-function updateRangeLabels(){
- $("zoomValue").textContent = Number($("zoom").value).toFixed(2) + "×";
- $("horizontalValue").textContent = $("horizontal").value;
- $("verticalValue").textContent = $("vertical").value;
+const $=id=>document.getElementById(id);
+const photo=$("photo"),preview=$("preview"),canvas=$("canvas"),ctx=canvas.getContext("2d");
+let originalImage=null,imageUrl=null,segmentation=null,segmentationMask=null,outputReady=false,modelPromise=null;
+const presets={
+ usVisa:{w:600,h:600,note:"US visa: official guidance specifies a square image and a plain white/off-white background; digital alteration is not permitted. Confirm the exact upload instructions for your visa category."},
+ ukVisa:{w:600,h:750,note:"UK visa digital photo: at least 600 × 750 px, JPG/JPEG, 50 KB–6 MB, portrait orientation. UKVI says the photo must not be digitally altered."},
+ schengen:{w:413,h:531,note:"Schengen photo dimensions vary by application centre/country. 35 × 45 mm is a common printed format; confirm with the specific embassy or visa centre before use."}
+};
+function setStatus(s){$("status").textContent=s}
+function updateRanges(){$("zoomValue").textContent=Number($("zoom").value).toFixed(2)+"×";$("horizontalValue").textContent=$("horizontal").value;$("verticalValue").textContent=$("vertical").value}
+function invalidate(){outputReady=false;$("downloadPng").disabled=true;$("downloadJpg").disabled=true}
+function updatePreset(){
+ const c=$("country").value,d=$("document").value;let p=null;
+ if(c==="us"&&d==="visa")p=presets.usVisa;
+ if(c==="uk"&&d==="visa")p=presets.ukVisa;
+ if(c==="schengen"&&d==="visa")p=presets.schengen;
+ const mode=$("backgroundMode"),processButton=$("process");
+ mode.disabled=false;processButton.disabled=false;
+ if(c==="us"&&(d==="visa"||d==="passport")){
+  mode.value="original";mode.disabled=true;
+  $("presetNote").textContent=d==="passport"?"US passport: printed photo is 2 × 2 inches. Use an original photo; do not apply AI background replacement, filters or facial edits. This tool's crop/resize output must still be checked against the official instructions.":"US visa: use crop/resize only and keep the original background. Do not use AI background replacement or facial edits. The embassy/consulate makes the final acceptance decision.";
+ } else if(c==="uk"&&d==="visa"){
+  mode.value="original";mode.disabled=true;processButton.disabled=true;
+  $("presetNote").textContent="UK visa photo must not be altered by software. Do not export a processed image from this tool for this application; use the original photo and follow the official UKVI upload instructions.";
+ } else if(c==="ca"&&d==="passport"){
+  mode.value="original";mode.disabled=true;processButton.disabled=true;
+  $("presetNote").textContent="Canada passport photos must be unaltered. The rules explicitly prohibit cropping around the head, background replacement and AI edits. Do not use an exported image from this tool for a Canadian passport application.";
+ } else if(p){$("width").value=p.w;$("height").value=p.h;$("presetNote").textContent=p.note}
+ else if(c==="india"){$("presetNote").textContent="India: exact photo requirements depend on the service (passport, e-Visa or other ID). No unverified preset is applied. Check the relevant official portal and enter its exact dimensions."}
+ else {$("presetNote").textContent="No verified preset is loaded for this combination. Enter dimensions from the exact issuing authority's instructions; do not assume one size fits every document."}
+ invalidate();
 }
-["zoom","horizontal","vertical"].forEach(id => $(id).addEventListener("input", updateRangeLabels));
-$("reset").addEventListener("click", () => {
- $("zoom").value = "1"; $("horizontal").value = "0"; $("vertical").value = "0";
- updateRangeLabels();
- $("status").textContent = "Framing reset. Select Create Photo to update your result.";
- outputReady = false; $("download").disabled = true;
+$("country").addEventListener("change",updatePreset);$("document").addEventListener("change",updatePreset);
+["zoom","horizontal","vertical"].forEach(id=>$(id).addEventListener("input",()=>{updateRanges();invalidate()}));
+["width","height","backgroundColor","backgroundMode"].forEach(id=>$(id).addEventListener("change",invalidate));
+photo.addEventListener("change",()=>{
+ const file=photo.files&&photo.files[0];if(!file)return;
+ if(!["image/jpeg","image/png","image/webp"].includes(file.type)){alert("Please select a JPG, PNG or WebP image.");photo.value="";return}
+ if(file.size>15*1024*1024){alert("Please choose an image smaller than 15 MB.");photo.value="";return}
+ const nextUrl=URL.createObjectURL(file),img=new Image();
+ img.onload=()=>{if(imageUrl)URL.revokeObjectURL(imageUrl);imageUrl=nextUrl;originalImage=img;preview.src=imageUrl;preview.style.display="block";$("uploadHint").textContent="Original photo loaded. Your image stays in this browser.";segmentationMask=null;invalidate();canvas.hidden=true;setStatus("Photo loaded. Choose background mode and select Create photo.")};
+ img.onerror=()=>{URL.revokeObjectURL(nextUrl);alert("This image could not be opened. Try another photo.")};img.src=nextUrl;
 });
-photo.addEventListener("change", () => {
- const file = photo.files && photo.files[0];
- if (!file) return;
- if (!["image/jpeg","image/png","image/webp"].includes(file.type)) {
-  alert("Please select a JPG, PNG or WebP image."); photo.value = ""; return;
+async function getSegmenter(){
+ if(modelPromise)return modelPromise;
+ modelPromise=new Promise((resolve,reject)=>{
+  if(typeof SelfieSegmentation==="undefined"){reject(new Error("AI model library did not load. Check your internet connection and reload the page."));return}
+  try{
+   segmentation=new SelfieSegmentation({locateFile:file=>"https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/"+file});
+   segmentation.setOptions({modelSelection:1});
+   segmentation.onResults(results=>{segmentationMask=results.segmentationMask;});
+   resolve(segmentation);
+  }catch(e){reject(e)}
+ });
+ return modelPromise;
+}
+async function runSegmentation(){
+ const engine=await getSegmenter();segmentationMask=null;
+ await engine.send({image:originalImage});
+ if(!segmentationMask)throw new Error("The AI model could not create a person mask. Try another photo or keep the original background.");
+ return segmentationMask;
+}
+function drawPhoto(mask){
+ const w=Number($("width").value),h=Number($("height").value);
+ if(!Number.isInteger(w)||!Number.isInteger(h)||w<100||h<100||w>3000||h>3000)throw new Error("Enter whole-number dimensions between 100 and 3000 pixels.");
+ canvas.width=w;canvas.height=h;
+ const scale=Math.max(w/originalImage.width,h/originalImage.height)*Number($("zoom").value);
+ const dw=originalImage.width*scale,dh=originalImage.height*scale;
+ const dx=-(Math.max(0,dw-w))*(Number($("horizontal").value)+100)/200;
+ const dy=-(Math.max(0,dh-h))*(Number($("vertical").value)+100)/200;
+ if(mask){
+  const layer=document.createElement("canvas");layer.width=w;layer.height=h;const lctx=layer.getContext("2d");
+  lctx.drawImage(originalImage,dx,dy,dw,dh);lctx.globalCompositeOperation="destination-in";lctx.drawImage(mask,dx,dy,dw,dh);lctx.globalCompositeOperation="source-over";
+  ctx.fillStyle=$("backgroundColor").value;ctx.fillRect(0,0,w,h);ctx.drawImage(layer,0,0);
+ }else{
+  ctx.fillStyle="#ffffff";ctx.fillRect(0,0,w,h);ctx.drawImage(originalImage,dx,dy,dw,dh);
  }
- if (file.size > 15 * 1024 * 1024) {
-  alert("Please select an image smaller than 15 MB."); photo.value = ""; return;
- }
- const nextUrl = URL.createObjectURL(file);
- const img = new Image();
- img.onload = () => {
-  if (imageUrl) URL.revokeObjectURL(imageUrl);
-  imageUrl = nextUrl; originalImage = img; preview.src = imageUrl;
-  preview.style.display = "block";
-  $("status").textContent = "Photo loaded on this device. Adjust the framing, then create your photo.";
-  outputReady = false; $("download").disabled = true; canvas.hidden = true;
- };
- img.onerror = () => { URL.revokeObjectURL(nextUrl); alert("This image could not be opened. Please try another photo."); };
- img.src = nextUrl;
+ canvas.hidden=false;$("resultHint").classList.add("hidden");outputReady=true;$("downloadPng").disabled=false;$("downloadJpg").disabled=false;
+ setStatus("Photo created at "+w+" × "+h+" pixels. Review the face, hair edges, crop and background before downloading.");
+}
+$("process").addEventListener("click",async()=>{
+ if(!originalImage){alert("Please upload a photo first.");return}
+ invalidate();$("process").disabled=true;setStatus("Preparing your photo…");
+ try{
+  let mask=null;
+  if($("backgroundMode").value==="ai"){setStatus("Loading AI background model… this may take a moment on mobile.");mask=await runSegmentation();setStatus("AI background detected. Preparing the final crop…")}
+  drawPhoto(mask);
+ }catch(e){setStatus("Could not process photo: "+(e.message||"Unknown error"));alert(e.message||"Photo processing failed.")}
+ finally{$("process").disabled=false}
 });
-
-$("process").addEventListener("click", () => {
- if (!originalImage) { alert("Please upload a photo first."); return; }
- const w = Number($("width").value), h = Number($("height").value);
- if (!Number.isInteger(w) || !Number.isInteger(h) || w < 100 || h < 100 || w > 3000 || h > 3000) {
-  alert("Enter whole-number dimensions between 100 and 3000 pixels."); return;
- }
- const backgrounds = {white:"#ffffff",lightgray:"#eeeeee",blue:"#e5efff"};
- canvas.width = w; canvas.height = h;
- ctx.fillStyle = backgrounds[$("background").value] || "#ffffff";
- ctx.fillRect(0,0,w,h);
- const scale = Math.max(w / originalImage.width, h / originalImage.height) * Number($("zoom").value);
- const dw = originalImage.width * scale, dh = originalImage.height * scale;
- const extraX = Math.max(0,dw-w), extraY = Math.max(0,dh-h);
- const dx = -extraX * (Number($("horizontal").value)+100)/200;
- const dy = -extraY * (Number($("vertical").value)+100)/200;
- ctx.drawImage(originalImage,dx,dy,dw,dh);
- canvas.hidden = false;
- $("status").textContent = "Photo created at " + w + " × " + h + " pixels. Review the crop before downloading.";
- outputReady = true; $("download").disabled = false;
-});
-$("download").addEventListener("click", () => {
- if (!outputReady || !canvas.width) return;
- canvas.toBlob(blob => {
-  if (!blob) { alert("Unable to create JPG. Please try again."); return; }
-  const url = URL.createObjectURL(blob), link = document.createElement("a");
-  link.href = url; link.download = "passport-ai-photo.jpg"; link.click();
-  setTimeout(() => URL.revokeObjectURL(url),1500);
- },"image/jpeg",0.95);
-});
-updateRangeLabels();
+$("reset").addEventListener("click",()=>{$("zoom").value="1";$("horizontal").value="0";$("vertical").value="0";updateRanges();invalidate();setStatus("Framing reset. Select Create photo to update your result.")});
+function download(type){
+ if(!outputReady)return;
+ canvas.toBlob(blob=>{if(!blob){alert("Unable to create file. Please try again.");return}
+ const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=type==="image/png"?"passportai-photo.png":"passportai-photo.jpg";a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)
+ },type,type==="image/jpeg"?.95:undefined);
+}
+$("downloadPng").addEventListener("click",()=>download("image/png"));$("downloadJpg").addEventListener("click",()=>download("image/jpeg"));
+updateRanges();
 </script>
 </body>
 </html>
