@@ -29,6 +29,7 @@ Use a current Android Chrome browser and a separate desktop Chromium browser. Us
 | M05 | Select US digital visa | Starts at 600 × 600; rejects non-square and dimensions outside 600–1200; JPG download is rejected if it remains over 240,000 bytes. |
 | M06 | Select India child-under-4 print route | Fixed 35 × 45 mm size; 300/600 DPI selection controls pixel dimensions; no official acceptance guarantee. |
 | M07 | Select Australia printed passport | Width 35–40 mm and height 45–50 mm; out-of-range values rejected; professional-provider warning visible. |
+| M17 | Select India child-under-4, US digital visa or Australia printed route | Only the route-approved background choices remain selectable; switching route resets a disallowed choice to white. |
 | M08 | Change country/route after creating a custom image | Previous canvas, download and print-sheet result are invalidated; user must create a fresh result. |
 | M09 | Change physical size, DPI or paper after creating an image | Stale result is invalidated; print PDF cannot be downloaded until photo is recreated. |
 | M10 | Upload unsupported MIME, corrupt image, or image larger than 15 MiB | Rejected with a clear message; previous output is not retained as downloadable. |
