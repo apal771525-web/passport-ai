@@ -29,9 +29,9 @@ test("DPI conversion is explicit and rounds to whole pixels", () => {
 test("A4 35 × 45 mm print sheet has a centred multi-photo layout", () => {
   const result=calculatePrintLayout({photoWidthMm:35,photoHeightMm:45,paper:"A4"});
   assert.equal(result.paper,"A4");
-  assert.equal(result.count,10);
+  assert.equal(result.count,25);
   assert.equal(result.rows,5);
-  assert.equal(result.columns,2);
+  assert.equal(result.columns,5);
   assert.ok(result.placements.every(p=>p.x>=0 && p.y>=0));
 });
 
