@@ -85,6 +85,14 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <p id="faceStatus" class="note" role="status" aria-live="polite">Upload a photo first. Face analysis starts only after you tap the button.</p>
 </div>
 <div class="image-info" style="margin-top:12px">
+<strong>Background removal (experimental)</strong>
+<p class="note">Available only in Custom Photo mode. When you tap the button, a MediaPipe person-segmentation model runs in your browser to create a transparent PNG. Edges may be imperfect, especially around hair, glasses or similar-coloured backgrounds. Not for official passport/visa photos where unaltered originals are required. MediaPipe may send usage/performance metrics to Google.</p>
+<button class="secondary" id="removeBackground" type="button" disabled>Remove background</button>
+<p id="backgroundStatus" class="note" role="status" aria-live="polite">Upload a photo and select Custom Photo mode first.</p>
+<canvas id="backgroundCanvas" class="preview" hidden></canvas>
+<button class="secondary" id="downloadBackground" type="button" disabled>Download transparent PNG</button>
+</div>
+<div class="image-info" style="margin-top:12px">
 <strong>Photo quality signals (basic estimate)</strong>
 <p class="note">Checks brightness, very dark/bright areas and estimated sharpness on a small in-browser sample. Results are approximate and are not an official photo-quality or acceptance check.</p>
 <button class="secondary" id="qualityCheck" type="button" disabled>Run photo quality check</button>
@@ -205,11 +213,13 @@ function renderRequirements(){
  const panel = $("requirements");
  const profile = requirementProfiles[country + "|" + doc];
  officialUseBlocked = doc !== "custom";
+ $("removeBackground").disabled = officialUseBlocked || !originalImage;
  $("process").disabled = officialUseBlocked;
  $("download").disabled = officialUseBlocked || !outputReady;
  $("download").textContent = $("format").value === "image/png" ? "Download PNG Photo" : "Download JPG Photo";
  $("printTools").hidden = doc !== "custom";
  $("printSheetButton").disabled = doc !== "custom" || !outputReady;
+ $("removeBackground").disabled = doc !== "custom" || !originalImage;
  if (doc === "custom"){
   officialUseBlocked = false;
   $("process").disabled = false;
@@ -268,7 +278,7 @@ photo.addEventListener("change", () => {
   $("analyzeFace").disabled = false;
   $("faceStatus").textContent = "Ready. Tap Analyze face position to run the optional on-device check.";
   $("status").textContent = "Photo loaded on this device. Adjust the framing, then create your photo.";
-  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true; $("analyzeFace").disabled = false; $("qualityCheck").disabled = false; $("qualityStatus").textContent = "New photo loaded. Tap Run photo quality check to analyze it locally."; $("faceStatus").textContent = "New photo loaded. Run analysis again if needed."; canvas.hidden = true;
+  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true; $("analyzeFace").disabled = false; $("qualityCheck").disabled = false; $("removeBackground").disabled = officialUseBlocked; $("downloadBackground").disabled = true; $("backgroundCanvas").hidden = true; $("backgroundStatus").textContent = officialUseBlocked ? "Choose Custom Photo mode to use this experimental tool." : "Photo loaded. Tap Remove background to run segmentation locally."; $("qualityStatus").textContent = "New photo loaded. Tap Run photo quality check to analyze it locally."; $("faceStatus").textContent = "New photo loaded. Run analysis again if needed."; canvas.hidden = true;
  };
  img.onerror = () => { URL.revokeObjectURL(nextUrl); alert("This image could not be opened. Please try another photo."); };
  img.src = nextUrl;
@@ -344,6 +354,66 @@ async function getFaceDetector(){
  }
  return faceDetectorPromise;
 }
+const backgroundButton = document.getElementById("removeBackground");
+const backgroundStatus = document.getElementById("backgroundStatus");
+const backgroundCanvas = document.getElementById("backgroundCanvas");
+const downloadBackground = document.getElementById("downloadBackground");
+let segmenterPromise = null;
+async function getImageSegmenter(){
+ if (!segmenterPromise) {
+  segmenterPromise = (async () => {
+   const {FilesetResolver, ImageSegmenter} = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs");
+   const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm");
+   return await ImageSegmenter.createFromOptions(vision, {
+    baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite",delegate:"CPU"},
+    runningMode:"IMAGE",outputCategoryMask:true,outputConfidenceMasks:false
+   });
+  })().catch(error => {segmenterPromise=null;throw error;});
+ }
+ return segmenterPromise;
+}
+backgroundButton.addEventListener("click", async () => {
+ const image=document.getElementById("preview");
+ if (document.getElementById("document").value !== "custom") {backgroundStatus.textContent="This experimental edit is restricted to Custom Photo mode.";return;}
+ if (!image || !image.complete || !image.naturalWidth) {backgroundStatus.textContent="Upload a photo first.";return;}
+ backgroundButton.disabled=true;downloadBackground.disabled=true;
+ backgroundStatus.textContent="Loading the segmentation model and detecting the person locally… First use may take a little while.";
+ try {
+  const segmenter=await getImageSegmenter();
+  const result=segmenter.segment(image);
+  const mask=result.categoryMask;
+  if (!mask) throw new Error("The model did not return a category mask.");
+  const maskData=mask.getAsUint8Array();
+  const mw=mask.width,mh=mask.height;
+  if (!mw || !mh || !maskData || maskData.length < mw*mh) throw new Error("The segmentation mask was empty.");
+  backgroundCanvas.width=image.naturalWidth;backgroundCanvas.height=image.naturalHeight;
+  const outCtx=backgroundCanvas.getContext("2d",{willReadFrequently:true});
+  outCtx.drawImage(image,0,0);
+  const pixels=outCtx.getImageData(0,0,backgroundCanvas.width,backgroundCanvas.height);
+  for(let y=0;y<backgroundCanvas.height;y++){
+   const my=Math.min(mh-1,Math.floor(y*mh/backgroundCanvas.height));
+   for(let x=0;x<backgroundCanvas.width;x++){
+    const mx=Math.min(mw-1,Math.floor(x*mw/backgroundCanvas.width));
+    if(maskData[my*mw+mx]===0) pixels.data[(y*backgroundCanvas.width+x)*4+3]=0;
+   }
+  }
+  outCtx.putImageData(pixels,0,0);
+  backgroundCanvas.hidden=false;downloadBackground.disabled=false;
+  backgroundStatus.textContent="Background removal finished. Review the transparent preview carefully; segmentation may miss details or remove parts of the subject. Download is available as PNG.";
+  if(result.close) result.close();
+ } catch(error) {
+  backgroundStatus.textContent="Background removal could not run. Check your internet connection and browser support, then try again. "+(error&&error.message?error.message:"");
+ } finally {backgroundButton.disabled=false;}
+});
+downloadBackground.addEventListener("click",()=>{
+ if(backgroundCanvas.hidden||!backgroundCanvas.width)return;
+ backgroundCanvas.toBlob(blob=>{
+  if(!blob){backgroundStatus.textContent="Could not create PNG. Please try again.";return;}
+  const url=URL.createObjectURL(blob),link=document.createElement("a");
+  link.href=url;link.download="passport-ai-transparent-background.png";link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+ },"image/png");
+});
 const qualityButton = document.getElementById("qualityCheck");
 const qualityStatus = document.getElementById("qualityStatus");
 qualityButton.addEventListener("click", () => {
