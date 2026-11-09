@@ -8,7 +8,7 @@ Run from the repository root:
 node --test
 ```
 
-The suite covers method and content-type rejection, same-origin checks, malformed input, base64 validation, MIME/signature mismatch, HTTP and image size limits, privacy/security headers, the expected disabled-provider response, and the rate-limiter adapter's fail-closed behavior.
+The suite covers method and content-type rejection, same-origin checks, malformed input, base64 validation, MIME/signature mismatch, HTTP and image size limits, privacy/security headers, the expected disabled-provider response, the rate-limiter adapter's fail-closed behavior, and authentication-guard claim checks.
 
 ## Security boundary
 
@@ -28,6 +28,15 @@ The suite covers method and content-type rejection, same-origin checks, malforme
 - Prefer a stable authenticated user ID. If an IP fallback is later used, document its purpose, retention, proxy-trust rules, and privacy notice.
 - The adapter is unit-tested with fake stores only. No Redis/KV vendor, credentials, network connection, endpoint wiring, or live quota is configured.
 - The endpoint does not yet enforce this adapter. Authentication and a production shared-store implementation must be reviewed and tested before public image processing is enabled.
+
+## Authentication guard — implemented, not activated
+
+`lib/auth-guard.js` accepts only a server-attached `request.auth` principal. It checks the authenticated flag, subject, exact issuer, expected audience, and expiry. It never trusts a user ID supplied through request JSON or headers.
+
+- This guard does not verify JWT signatures and must not be used as a substitute for a vetted identity-provider SDK or trusted server middleware.
+- The future middleware must validate signature, issuer, audience, expiry, and relevant claims before attaching `request.auth`.
+- No login provider, OAuth client, session cookie, secret, user database, or external authentication service is configured.
+- The guard is not wired into the image endpoint yet; that endpoint remains disabled.
 
 ## Deployment boundary
 
