@@ -220,6 +220,8 @@ function renderRequirements(){
  $("printTools").hidden = doc !== "custom";
  $("printSheetButton").disabled = doc !== "custom" || !outputReady;
  $("removeBackground").disabled = doc !== "custom" || !originalImage;
+ $("downloadBackground").disabled = doc !== "custom" || $("backgroundCanvas").hidden;
+ if (doc !== "custom") $("backgroundCanvas").hidden = true;
  if (doc === "custom"){
   officialUseBlocked = false;
   $("process").disabled = false;
