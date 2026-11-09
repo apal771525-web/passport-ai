@@ -78,7 +78,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 </section>
 
 <section class="card">
-<h2>03. Adjust size and framing</h2>
+<h2>04. Adjust size and framing</h2>
 <div id="printControls" class="print-controls" hidden>
 <strong>Physical print size</strong>
 <p class="print-help">Choose a physical size and an explicit print resolution. Pixel dimensions are calculated from millimetres and DPI; the print PDF places the photo at the exact physical size.</p>
@@ -335,6 +335,7 @@ import { getDocumentRule, getAvailableRoutes } from "/lib/document-rules.js";
 import { getOutputPreset, validateOutputDimensions } from "/lib/output-presets.js";
 import { getPrintPreset, validatePrintDimensions, millimetresToPixels } from "/lib/print-presets.js";
 import { createPrintSheetPdf } from "/lib/print-pdf.js";
+import { calculatePrintLayout } from "/lib/print-layout.js";
 window.passportAiValidateOutputDimensions = validateOutputDimensions;
 window.passportAiValidatePrintDimensions = validatePrintDimensions;
 window.passportAiMillimetresToPixels = millimetresToPixels;
@@ -364,7 +365,7 @@ function renderRule(){
   pw.step=printPreset && printPreset.minWidthMm===printPreset.maxWidthMm ? "1" : "0.1";
   ph.step=printPreset && printPreset.minHeightMm===printPreset.maxHeightMm ? "1" : "0.1";
   if(printPresetNote) printPresetNote.textContent=printPreset
-   ? printPreset.label+". Choose 300 or 600 DPI; Australia permits the displayed width/height ranges. Check face size and framing manually."
+   ? printPreset.label+". Choose 300 or 600 DPI. Stay within the displayed physical-size range and verify face size and framing manually."
    : "Custom print dimensions are for personal/non-official use. PassportAI does not claim these meet any government requirement.";
  }
  document.querySelectorAll("#width,#height").forEach(field=>field.disabled=window.passportAiPrintControlsEnabled);
@@ -438,13 +439,14 @@ document.getElementById("printSheet").addEventListener("click",async()=>{
  try{
   const blob=await new Promise((resolve,reject)=>imageCanvas.toBlob(value=>value?resolve(value):reject(new Error("Could not encode the photo.")),"image/jpeg",0.96));
   const jpegBytes=new Uint8Array(await blob.arrayBuffer());
+  const layout=calculatePrintLayout({photoWidthMm:config.photoWidthMm,photoHeightMm:config.photoHeightMm,paper:config.paper});
   const pdf=createPrintSheetPdf({jpegBytes,imageWidth:imageCanvas.width,imageHeight:imageCanvas.height,photoWidthMm:config.photoWidthMm,photoHeightMm:config.photoHeightMm,paper:config.paper});
   const pdfBlob=new Blob([pdf],{type:"application/pdf"});
   const url=URL.createObjectURL(pdfBlob), link=document.createElement("a");
   link.href=url; link.download="passport-ai-"+config.paper.toLowerCase()+"-print-sheet.pdf"; link.click();
   setTimeout(()=>URL.revokeObjectURL(url),3000);
   status.textContent="Print-ready PDF prepared. Print at Actual size / 100% on "+config.paper+" paper; do not use Fit to page.";
-  document.getElementById("printSheetSummary").textContent="PDF page: "+config.paper+". Photo size: "+config.photoWidthMm+" × "+config.photoHeightMm+" mm at "+config.dpi+" DPI. The PDF contains repeated photos and trim marks.";
+  document.getElementById("printSheetSummary").textContent="PDF page: "+config.paper+". Photo: "+config.photoWidthMm+" × "+config.photoHeightMm+" mm at "+config.dpi+" DPI ("+imageCanvas.width+" × "+imageCanvas.height+" px). "+layout.count+" copies arranged "+layout.columns+" across × "+layout.rows+" down, with trim marks.";
  }catch(error){ status.textContent="Print PDF could not be created: "+(error?.message||"unknown error"); }
  finally{ button.disabled=false; button.textContent="Download print-ready PDF"; }
 });
