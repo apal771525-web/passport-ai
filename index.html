@@ -328,7 +328,11 @@ document.getElementById("photo").addEventListener("change", () => {
 <script type="module">
 import { getDocumentRule, getAvailableRoutes } from "/lib/document-rules.js";
 import { getOutputPreset, validateOutputDimensions } from "/lib/output-presets.js";
+import { getPrintPreset, validatePrintDimensions, millimetresToPixels } from "/lib/print-presets.js";
+import { createPrintSheetPdf } from "/lib/print-pdf.js";
 window.passportAiValidateOutputDimensions = validateOutputDimensions;
+window.passportAiValidatePrintDimensions = validatePrintDimensions;
+window.passportAiMillimetresToPixels = millimetresToPixels;
 const countrySelect=document.getElementById("country");
 const routeSelect=document.getElementById("applicationRoute");
 const panel=document.getElementById("officialRequirements");
@@ -337,7 +341,28 @@ const downloadButton=document.getElementById("download");
 function renderRule(){
  const rule=getDocumentRule(countrySelect.value,routeSelect.value);
  const preset=getOutputPreset(countrySelect.value,routeSelect.value);
+ const printPreset=getPrintPreset(countrySelect.value,routeSelect.value);
  window.passportAiOutputPreset=preset;
+ window.passportAiPrintPreset=printPreset;
+ window.passportAiPrintControlsEnabled=Boolean(printPreset || routeSelect.value==="custom");
+ window.passportAiPrintConfig=null;
+ const printControls=document.getElementById("printControls");
+ const printButton=document.getElementById("printSheet");
+ const printPresetNote=document.getElementById("printPresetNote");
+ printControls.hidden=!window.passportAiPrintControlsEnabled;
+ printButton.disabled=true;
+ if(window.passportAiPrintControlsEnabled){
+  const pw=document.getElementById("photoWidthMm"), ph=document.getElementById("photoHeightMm");
+  pw.min=printPreset?String(printPreset.minWidthMm):"20"; pw.max=printPreset?String(printPreset.maxWidthMm):"100";
+  ph.min=printPreset?String(printPreset.minHeightMm):"20"; ph.max=printPreset?String(printPreset.maxHeightMm):"100";
+  pw.value=String(printPreset ? printPreset.preferredWidthMm : 35); ph.value=String(printPreset ? printPreset.preferredHeightMm : 45);
+  pw.step=printPreset && printPreset.minWidthMm===printPreset.maxWidthMm ? "1" : "0.1";
+  ph.step=printPreset && printPreset.minHeightMm===printPreset.maxHeightMm ? "1" : "0.1";
+  if(printPresetNote) printPresetNote.textContent=printPreset
+   ? printPreset.label+". Choose 300 or 600 DPI; Australia permits the displayed width/height ranges. Check face size and framing manually."
+   : "Custom print dimensions are for personal/non-official use. PassportAI does not claim these meet any government requirement.";
+ }
+ document.querySelectorAll("#width,#height").forEach(field=>field.disabled=window.passportAiPrintControlsEnabled);
  const notice=document.getElementById("outputPresetNotice");
  const widthInput=document.getElementById("width"), heightInput=document.getElementById("height");
  widthInput.min=preset?String(preset.minWidth):"100"; widthInput.max=preset?String(preset.maxWidth):"3000";
@@ -346,7 +371,7 @@ function renderRule(){
   widthInput.value=String(preset.preferredWidth); heightInput.value=String(preset.preferredHeight);
   if(notice) notice.textContent="Verified digital preset: square JPEG, 600–1,200 px per side, maximum 240 KB. PassportAI starts at 600 × 600 and compresses the JPG if needed. Exact visa category rules may differ.";
  } else if(notice) {
-  notice.textContent="No automatic pixel preset for this route. Physical print sizes are in millimetres; choose a print DPI before converting to pixels. Unknown routes are not guessed.";
+  notice.textContent="No automatic digital pixel preset for this route. Select a verified physical print route or use custom sizing. Unknown requirements are not guessed.";
  }
  window.passportAiOfficialExportBlocked=Boolean(rule?.officialExportBlocked);
  const canvas=document.getElementById("canvas");
@@ -389,6 +414,35 @@ function updateRoutes(){
 }
 countrySelect.addEventListener("change",updateRoutes);
 routeSelect.addEventListener("change",renderRule);
+["photoWidthMm","photoHeightMm","printDpi","printPaper"].forEach(id=>{
+ const field=document.getElementById(id);
+ field.addEventListener("input",invalidatePrintResult);
+ field.addEventListener("change",invalidatePrintResult);
+});
+function invalidatePrintResult(){
+ window.passportAiPrintConfig=null;
+ document.getElementById("printSheet").disabled=true;
+ document.getElementById("download").disabled=true;
+ document.getElementById("canvas").hidden=true;
+}
+document.getElementById("printSheet").addEventListener("click",async()=>{
+ const config=window.passportAiPrintConfig, imageCanvas=document.getElementById("canvas");
+ if(!config || !imageCanvas.width || window.passportAiOfficialExportBlocked) return;
+ const button=document.getElementById("printSheet"), status=document.getElementById("status");
+ button.disabled=true; button.textContent="Preparing print PDF…";
+ try{
+  const blob=await new Promise((resolve,reject)=>imageCanvas.toBlob(value=>value?resolve(value):reject(new Error("Could not encode the photo.")),"image/jpeg",0.96));
+  const jpegBytes=new Uint8Array(await blob.arrayBuffer());
+  const pdf=createPrintSheetPdf({jpegBytes,imageWidth:imageCanvas.width,imageHeight:imageCanvas.height,photoWidthMm:config.photoWidthMm,photoHeightMm:config.photoHeightMm,paper:config.paper});
+  const pdfBlob=new Blob([pdf],{type:"application/pdf"});
+  const url=URL.createObjectURL(pdfBlob), link=document.createElement("a");
+  link.href=url; link.download="passport-ai-"+config.paper.toLowerCase()+"-print-sheet.pdf"; link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  status.textContent="Print-ready PDF prepared. Print at Actual size / 100% on "+config.paper+" paper; do not use Fit to page.";
+  document.getElementById("printSheetSummary").textContent="PDF page: "+config.paper+". Photo size: "+config.photoWidthMm+" × "+config.photoHeightMm+" mm at "+config.dpi+" DPI. The PDF contains repeated photos and trim marks.";
+ }catch(error){ status.textContent="Print PDF could not be created: "+(error?.message||"unknown error"); }
+ finally{ button.disabled=false; button.textContent="Download print-ready PDF"; }
+});
 updateRoutes();
 </script>
 </body>
