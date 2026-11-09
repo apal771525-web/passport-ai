@@ -47,16 +47,17 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 </section>
 
 <section class="card">
-<h2>01. Select your document</h2>
-<label for="document">Document type</label>
-<select id="document">
-<option>Passport Photo</option><option>Visa Photo</option><option>ID Card Photo</option><option>Custom Photo</option>
-</select>
+<h2>01. Select country & application route</h2>
 <label for="country">Country / Region</label>
 <select id="country">
-<option value="">Select country</option><option>India</option><option>United States</option><option>United Kingdom</option><option>Canada</option><option>Australia</option><option>Other</option>
+<option value="">Select country</option><option value="India">India</option><option value="United States">United States</option><option value="United Kingdom">United Kingdom</option><option value="Canada">Canada</option><option value="Australia">Australia</option><option value="Other">Other</option>
 </select>
-<p class="note">These selections are for your reference only. Verified country- and document-specific rules are not available in this prototype.</p>
+<label for="applicationRoute">Exact document / application route</label>
+<select id="applicationRoute"><option value="">Choose a country first</option></select>
+<div id="officialRequirements" class="requirements" aria-live="polite">
+<strong>Official requirements not verified</strong>
+<p class="note">Select a country and exact application route. Passport photo rules vary by document and application method.</p>
+</div>
 </section>
 
 <section class="card">
@@ -77,6 +78,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 
 <section class="card">
 <h2>03. Adjust size and framing</h2>
+<p id="outputPresetNotice" class="note">Select an exact route to see any verified digital output limits. Physical print sizes are not converted to pixels without a chosen DPI.</p>
 <div class="grid">
 <div><label for="width">Width (pixels)</label><input type="number" id="width" value="413" min="100" max="3000" inputmode="numeric"></div>
 <div><label for="height">Height (pixels)</label><input type="number" id="height" value="531" min="100" max="3000" inputmode="numeric"></div>
@@ -145,8 +147,12 @@ photo.addEventListener("change", () => {
 $("process").addEventListener("click", () => {
  if (!originalImage) { alert("Please upload a photo first."); return; }
  const w = Number($("width").value), h = Number($("height").value);
- if (!Number.isInteger(w) || !Number.isInteger(h) || w < 100 || h < 100 || w > 3000 || h > 3000) {
-  alert("Enter whole-number dimensions between 100 and 3000 pixels."); return;
+ const preset = window.passportAiOutputPreset || null;
+ const presetCheck = preset ? window.passportAiValidateOutputDimensions(w,h,preset) : {valid:true};
+ if (!Number.isInteger(w) || !Number.isInteger(h) || w < 100 || h < 100 || w > 3000 || h > 3000 || !presetCheck.valid) {
+  alert(presetCheck.reason==="wrong_aspect_ratio" ? "This route requires a square image." :
+   presetCheck.reason==="outside_allowed_range" ? "This route requires dimensions between 600 × 600 and 1200 × 1200 pixels." :
+   "Enter valid whole-number dimensions for the selected route."); return;
  }
  const backgrounds = {white:"#ffffff",lightgray:"#eeeeee",blue:"#e5efff"};
  canvas.width = w; canvas.height = h;
@@ -164,12 +170,21 @@ $("process").addEventListener("click", () => {
 });
 $("download").addEventListener("click", () => {
  if (!outputReady || !canvas.width) return;
- canvas.toBlob(blob => {
+ const preset = window.passportAiOutputPreset || null;
+ const maxBytes = preset?.maxBytes || 0;
+ const encode = quality => canvas.toBlob(blob => {
   if (!blob) { alert("Unable to create JPG. Please try again."); return; }
+  if (maxBytes && blob.size > maxBytes && quality > 0.55) {
+   encode(Math.max(0.55,quality-0.05)); return;
+  }
+  if (maxBytes && blob.size > maxBytes) {
+   alert("The JPG is still larger than the official 240 KB limit. Try a simpler source photo; no file was downloaded."); return;
+  }
   const url = URL.createObjectURL(blob), link = document.createElement("a");
   link.href = url; link.download = "passport-ai-photo.jpg"; link.click();
   setTimeout(() => URL.revokeObjectURL(url),1500);
- },"image/jpeg",0.95);
+ },"image/jpeg",quality);
+ encode(0.92);
 });
 updateRangeLabels();
 </script>
@@ -282,6 +297,8 @@ document.getElementById("photo").addEventListener("change", () => {
 </script>
 <script type="module">
 import { getDocumentRule, getAvailableRoutes } from "/lib/document-rules.js";
+import { getOutputPreset, validateOutputDimensions } from "/lib/output-presets.js";
+window.passportAiValidateOutputDimensions = validateOutputDimensions;
 const countrySelect=document.getElementById("country");
 const routeSelect=document.getElementById("applicationRoute");
 const panel=document.getElementById("officialRequirements");
@@ -289,6 +306,21 @@ const processButton=document.getElementById("process");
 const downloadButton=document.getElementById("download");
 function renderRule(){
  const rule=getDocumentRule(countrySelect.value,routeSelect.value);
+ const preset=getOutputPreset(countrySelect.value,routeSelect.value);
+ window.passportAiOutputPreset=preset;
+ const notice=document.getElementById("outputPresetNotice");
+ const widthInput=document.getElementById("width"), heightInput=document.getElementById("height");
+ widthInput.min=preset?String(preset.minWidth):"100"; widthInput.max=preset?String(preset.maxWidth):"3000";
+ heightInput.min=preset?String(preset.minHeight):"100"; heightInput.max=preset?String(preset.maxHeight):"3000";
+ if(preset){
+  widthInput.value=String(preset.preferredWidth); heightInput.value=String(preset.preferredHeight);
+  if(notice) notice.textContent="Verified digital preset: square JPEG, 600–1,200 px per side, maximum 240 KB. PassportAI starts at 600 × 600 and compresses the JPG if needed. Exact visa category rules may differ.";
+ } else if(notice) {
+  notice.textContent="No automatic pixel preset for this route. Physical print sizes are in millimetres; choose a print DPI before converting to pixels. Unknown routes are not guessed.";
+ }
+ window.passportAiOfficialExportBlocked=Boolean(rule?.officialExportBlocked);
+ const canvas=document.getElementById("canvas");
+ canvas.hidden=true; outputReady=false; downloadButton.disabled=true;
  panel.replaceChildren();
  const title=document.createElement("strong");
  if(!rule){
