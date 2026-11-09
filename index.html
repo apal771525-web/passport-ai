@@ -90,7 +90,10 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <button class="secondary" id="removeBackground" type="button" disabled>Remove background</button>
 <p id="backgroundStatus" class="note" role="status" aria-live="polite">Upload a photo and select Custom Photo mode first.</p>
 <canvas id="backgroundCanvas" class="preview" hidden></canvas>
-<button class="secondary" id="downloadBackground" type="button" disabled>Download transparent PNG</button>
+<label for="backgroundFill">Background for download</label>
+<select id="backgroundFill"><option value="transparent">Keep transparent</option><option value="#ffffff">White</option><option value="#eeeeee">Light grey</option><option value="#e5efff">Light blue</option></select>
+<p class="note">The preview above remains transparent. A selected solid colour is added only to the downloaded copy; your original photo is not changed.</p>
+<button class="secondary" id="downloadBackground" type="button" disabled>Download PNG with selected background</button>
 </div>
 <div class="image-info" style="margin-top:12px">
 <strong>Photo quality signals (basic estimate)</strong>
@@ -409,10 +412,16 @@ backgroundButton.addEventListener("click", async () => {
 });
 downloadBackground.addEventListener("click",()=>{
  if(backgroundCanvas.hidden||!backgroundCanvas.width)return;
- backgroundCanvas.toBlob(blob=>{
+ const fill=document.getElementById("backgroundFill").value;
+ const exportCanvas=document.createElement("canvas");
+ exportCanvas.width=backgroundCanvas.width;exportCanvas.height=backgroundCanvas.height;
+ const exportCtx=exportCanvas.getContext("2d");
+ if(fill!=="transparent"){exportCtx.fillStyle=fill;exportCtx.fillRect(0,0,exportCanvas.width,exportCanvas.height);}
+ exportCtx.drawImage(backgroundCanvas,0,0);
+ exportCanvas.toBlob(blob=>{
   if(!blob){backgroundStatus.textContent="Could not create PNG. Please try again.";return;}
   const url=URL.createObjectURL(blob),link=document.createElement("a");
-  link.href=url;link.download="passport-ai-transparent-background.png";link.click();
+  link.href=url;link.download=fill==="transparent"?"passport-ai-transparent-background.png":"passport-ai-background-"+fill.replace("#","")+".png";link.click();
   setTimeout(()=>URL.revokeObjectURL(url),1500);
  },"image/png");
 });
