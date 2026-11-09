@@ -146,6 +146,7 @@ photo.addEventListener("change", () => {
 
 $("process").addEventListener("click", () => {
  if (!originalImage) { alert("Please upload a photo first."); return; }
+ if (window.passportAiOfficialExportBlocked) { alert("This official route requires an original, unedited photo. Use the original image instead."); return; }
  const w = Number($("width").value), h = Number($("height").value);
  const preset = window.passportAiOutputPreset || null;
  const presetCheck = preset ? window.passportAiValidateOutputDimensions(w,h,preset) : {valid:true};
@@ -320,7 +321,7 @@ function renderRule(){
  }
  window.passportAiOfficialExportBlocked=Boolean(rule?.officialExportBlocked);
  const canvas=document.getElementById("canvas");
- canvas.hidden=true; outputReady=false; downloadButton.disabled=true;
+ canvas.hidden=true; downloadButton.disabled=true;
  panel.replaceChildren();
  const title=document.createElement("strong");
  if(!rule){
