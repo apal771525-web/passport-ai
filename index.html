@@ -85,7 +85,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 </section>
 
 <section class="card">
-<h2>04. Download your photo</h2>
+<h2>05. Download your photo</h2>
 <p id="status" class="note" role="status" aria-live="polite">Upload a photo to begin. Your image is processed locally in this browser.</p>
 <canvas id="canvas" hidden></canvas>
 <button class="primary" id="download" type="button" disabled>Download JPG Photo</button>
@@ -163,6 +163,113 @@ $("download").addEventListener("click", () => {
  },"image/jpeg",0.95);
 });
 updateRangeLabels();
+</script>
+<script type="module">
+import { evaluateFacePhotoQuality } from "/lib/face-quality-policy.js";
+const button = document.getElementById("analyzeQuality");
+const status = document.getElementById("faceQualityStatus");
+const issuesList = document.getElementById("faceQualityIssues");
+let detectorPromise;
+async function getDetector() {
+  if (!detectorPromise) {
+    detectorPromise = (async () => {
+      const { FilesetResolver, FaceDetector } = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs");
+      const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm");
+      return FaceDetector.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite", delegate: "CPU" },
+        runningMode: "IMAGE", minDetectionConfidence: 0.5, minSuppressionThreshold: 0.3
+      });
+    })().catch(error => { detectorPromise = null; throw error; });
+  }
+  return detectorPromise;
+}
+function measureImage(image) {
+  const side = 256, scale = Math.min(1, side / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const gray = new Float32Array(canvas.width * canvas.height);
+  let total = 0, clipped = 0, borderTotal = 0, borderN = 0;
+  const borderValues = [];
+  for (let y=0, n=0; y<canvas.height; y++) for (let x=0; x<canvas.width; x++,n++) {
+    const p=n*4, red=data[p], green=data[p+1], blue=data[p+2];
+    const lum=0.2126*red+0.7152*green+0.0722*blue;
+    gray[n]=lum; total+=lum;
+    if (lum<10 || lum>245) clipped++;
+    if (x<canvas.width*0.08 || x>canvas.width*0.92 || y<canvas.height*0.08 || y>canvas.height*0.92) {
+      borderValues.push(red,green,blue); borderTotal += red+green+blue; borderN+=3;
+    }
+  }
+  let lap=0, lapSq=0, count=0;
+  for(let y=1;y<canvas.height-1;y++) for(let x=1;x<canvas.width-1;x++){
+    const k=y*canvas.width+x, v=gray[k-1]+gray[k+1]+gray[k-canvas.width]+gray[k+canvas.width]-4*gray[k];
+    lap+=v; lapSq+=v*v; count++;
+  }
+  const variance=count?Math.max(0,lapSq/count-Math.pow(lap/count,2)):0;
+  const mean=borderN?borderTotal/borderN:0;
+  let spread=0;
+  for(const v of borderValues) spread+=Math.pow(v-mean,2);
+  const std=borderN?Math.sqrt(spread/borderN):255;
+  return {
+    sharpnessScore: Math.max(0,Math.min(1,variance/500)),
+    brightnessScore: (total/gray.length)/255,
+    clippingRatio: clipped/gray.length,
+    backgroundUniformityScore: Math.max(0,Math.min(1,1-std/110))
+  };
+}
+button.addEventListener("click", async () => {
+  const image = document.getElementById("preview");
+  if (!image || !image.complete || !image.naturalWidth) { status.textContent="Please upload a photo first."; return; }
+  button.disabled=true; issuesList.replaceChildren();
+  status.textContent="Loading the on-device face detector and checking this photo… First use may take a little time.";
+  try {
+    const detector=await getDetector();
+    const found=detector.detect(image);
+    const detections=found?.detections || [];
+    const metrics=measureImage(image);
+    const analysis={faceCount:detections.length,...metrics};
+    if(detections.length===1){
+      const b=detections[0].boundingBox;
+      analysis.faceBox={x:b.originX/image.naturalWidth,y:b.originY/image.naturalHeight,width:b.width/image.naturalWidth,height:b.height/image.naturalHeight};
+    }
+    const result=evaluateFacePhotoQuality(analysis);
+    status.textContent=result.status==="advisory_checks_passed"
+      ?"Basic advisory checks passed. Still review the photo and official document instructions."
+      : "Review suggested: "+result.issues.length+" item(s) need attention or could not be fully assessed.";
+    const messages={
+      no_face_detected:"No face detected — try a clear, front-facing photo.",
+      multiple_faces_detected:"Multiple faces detected — use a single-person photo if required.",
+      face_may_be_too_small:"Face may be too small — move the camera closer.",
+      face_may_be_too_large:"Face may be too large — leave more space around the head.",
+      face_may_be_off_center:"Face may be off-centre — adjust camera framing.",
+      possible_blur:"Possible blur — use steady camera and sharper focus.",
+      possibly_too_dark:"Photo may be too dark — use even lighting.",
+      possibly_overexposed:"Photo may be overexposed — avoid washed-out light.",
+      highlight_or_shadow_clipping:"Some highlights/shadows may lose detail.",
+      background_may_be_uneven:"Background may be uneven — use a plain, evenly lit backdrop.",
+      sharpness_not_assessed:"Sharpness could not be assessed.",
+      exposure_not_assessed:"Exposure could not be assessed.",
+      background_not_assessed:"Background could not be assessed."
+    };
+    for(const issue of result.issues){
+      const li=document.createElement("li"); li.textContent=messages[issue] || issue; issuesList.append(li);
+    }
+    if(!result.issues.length){
+      const li=document.createElement("li"); li.textContent="No obvious issue found by these rough checks."; issuesList.append(li);
+    }
+  } catch(error) {
+    status.textContent="Analysis could not run. Check your internet connection and try again. The photo was not uploaded by PassportAI.";
+    const li=document.createElement("li"); li.textContent="Technical detail: "+(error?.message || "unknown error"); issuesList.append(li);
+  } finally { button.disabled=false; }
+});
+document.getElementById("photo").addEventListener("change", () => {
+  button.disabled=!(document.getElementById("photo").files?.length);
+  status.textContent="Photo selected. Tap Analyze when ready.";
+  issuesList.replaceChildren();
+});
 </script>
 </body>
 </html>
