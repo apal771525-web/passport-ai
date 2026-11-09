@@ -1,0 +1,24 @@
+name: PassportAI backend scaffold checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [backend-blueprint-no-api-keys]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    name: Backend input and safety tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run built-in Node tests
+        run: node --test
