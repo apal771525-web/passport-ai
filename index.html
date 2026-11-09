@@ -23,6 +23,11 @@ input,select{width:100%;padding:13px;border:1px solid #dce2eb;border-radius:10px
 .upload{border:2px dashed #a7b8d2;border-radius:14px;padding:25px 14px;text-align:center;background:#f8faff;cursor:pointer;line-height:1.5}
 .upload strong{display:block;margin-bottom:6px;color:#234da6}
 .preview{width:100%;max-height:310px;object-fit:contain;display:none;margin:15px auto 0;background:#eef1f5;border-radius:10px}
+.preview-wrap{position:relative;width:100%;margin:15px auto 0;background:#eef1f5;border-radius:10px;overflow:hidden}
+.preview-wrap .preview{display:block;width:100%;max-height:310px;height:auto;margin:0;object-fit:contain}
+.crop-guide-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.crop-guide-overlay[hidden]{display:none}
+
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .range-row{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px}
 .range-row output{font-weight:700;color:#2459d3}
@@ -75,7 +80,14 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <section class="card">
 <h2>02. Upload your photo</h2>
 <label class="upload" for="photo"><strong>＋ Choose your selfie</strong>Tap to select a JPG, PNG or WebP image from your phone.<input type="file" id="photo" accept="image/jpeg,image/png,image/webp" hidden></label>
+<div id="previewWrap" class="preview-wrap" hidden>
 <img id="preview" class="preview" alt="Your uploaded photo preview">
+<svg id="cropGuideOverlay" class="crop-guide-overlay" aria-hidden="true" hidden>
+<g stroke="#ffffff" stroke-width="3" stroke-opacity=".9" fill="none">
+<path d="M 33.333 0 V 100 M 66.667 0 V 100 M 0 33.333 H 100 M 0 66.667 H 100" vector-effect="non-scaling-stroke"/>
+<rect id="detectedFaceBox" x="0" y="0" width="0" height="0" stroke="#35d39a" stroke-width="4" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/>
+</g></svg></div>
+<p id="guideStatus" class="note">Upload a photo to view framing guides. The guides are visual aids only.</p>
 <p class="note">Use a clear, front-facing photo with even lighting. Keep your full head visible; check the crop before downloading.</p>
 <div id="imageInfo" class="image-info" aria-live="polite"><strong>Image check</strong><span>Upload a photo to see its file details and resolution guidance.</span></div>
 <div class="image-info" style="margin-top:12px">
@@ -278,7 +290,12 @@ photo.addEventListener("change", () => {
  img.onload = () => {
   if (imageUrl) URL.revokeObjectURL(imageUrl);
   imageUrl = nextUrl; originalImage = img; originalFile = file; preview.src = imageUrl;
-  preview.style.display = "block";
+  $("previewWrap").hidden = false;
+  $("previewWrap").style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight;
+  $("cropGuideOverlay").setAttribute("viewBox","0 0 "+img.naturalWidth+" "+img.naturalHeight);
+  $("cropGuideOverlay").hidden = false;
+  $("detectedFaceBox").setAttribute("width","0"); $("detectedFaceBox").setAttribute("height","0");
+  $("guideStatus").textContent = "Rule-of-thirds guides are visible. A detected face outline appears after face analysis; guides do not certify document compliance.";
   updateImageInfo();
   $("analyzeFace").disabled = false;
   $("faceStatus").textContent = "Ready. Tap Analyze face position to run the optional on-device check.";
@@ -479,11 +496,19 @@ faceButton.addEventListener("click", async () => {
   const detections = result && result.detections ? result.detections : [];
   lastAnalyzedImage = image.src;
   if (detections.length === 0) {
+   document.getElementById("detectedFaceBox").setAttribute("width","0");
+   document.getElementById("detectedFaceBox").setAttribute("height","0");
+   document.getElementById("guideStatus").textContent = "No face outline available. Rule-of-thirds guides remain visible.";
    faceStatus.textContent = "No face detected. Try a clear, front-facing photo with the full face visible and even lighting. This can be a detection failure, not proof that the photo is invalid.";
   } else if (detections.length > 1) {
    faceStatus.textContent = detections.length + " faces detected. For a single-person document photo, retake with only the applicant in frame. Detection is not an identity or compliance check.";
   } else {
    const box = detections[0].boundingBox;
+   const faceRect = document.getElementById("detectedFaceBox");
+   faceRect.setAttribute("x",box.originX); faceRect.setAttribute("y",box.originY);
+   faceRect.setAttribute("width",box.width); faceRect.setAttribute("height",box.height);
+   document.getElementById("cropGuideOverlay").hidden = false;
+   document.getElementById("guideStatus").textContent = "Green outline shows the detector's approximate face box. White lines show thirds. Use these only as visual framing aids.";
    const cx = (box.originX + box.width/2) / image.naturalWidth;
    const cy = (box.originY + box.height/2) / image.naturalHeight;
    const faceW = box.width / image.naturalWidth * 100;
