@@ -8,7 +8,7 @@ Run from the repository root:
 node --test
 ```
 
-The suite covers method and content-type rejection, same-origin checks, malformed input, base64 validation, MIME/signature mismatch, HTTP and image size limits, privacy/security headers, the expected disabled-provider response, the rate-limiter adapter's fail-closed behavior, authentication-guard claim checks, and one-time private-upload authorization policy checks.
+The suite covers method and content-type rejection, same-origin checks, malformed input, base64 validation, MIME/signature mismatch, HTTP and image size limits, privacy/security headers, the expected disabled-provider response, the rate-limiter adapter's fail-closed behavior, authentication-guard claim checks, one-time private-upload authorization policy checks, and byte-level image header/dimension validation checks.
 
 ## Security boundary
 
@@ -46,6 +46,15 @@ The suite covers method and content-type rejection, same-origin checks, malforme
 - The 3 MiB policy ceiling matches the existing image-processing scaffold. The actual object size and file signature must be checked again after upload, before processing.
 - Client filenames and client-provided URLs are never used as storage destinations. Never fetch arbitrary client URLs.
 - The recommended architecture and mandatory activation controls are in `UPLOAD_SECURITY.md`.
+
+## Image validation — implemented, not wired
+
+`lib/image-validation.js` inspects JPEG SOF, PNG IHDR, and WebP headers from actual Buffer bytes; checks MIME agreement, dimensions, 3 MiB size, 12,000-pixel side limit, and 40-megapixel limit.
+
+- Header parsing is not full decoding and does not prove that every byte is safe or that the file is visually valid.
+- The PNG fixture is a minimal header fixture, not a complete decodable PNG. These tests do not measure image quality.
+- Before activation, add a maintained hardened decoder in an isolated resource-limited processing boundary, verify actual stored bytes, and safely re-encode.
+- The module is not wired into the endpoint. Provider calls remain disabled.
 
 ## Deployment boundary
 
