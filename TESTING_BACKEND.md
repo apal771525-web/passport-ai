@@ -8,7 +8,7 @@ Run from the repository root:
 node --test
 ```
 
-The suite covers method and content-type rejection, same-origin checks, malformed input, base64 validation, MIME/signature mismatch, HTTP and image size limits, privacy/security headers, the expected disabled-provider response, the rate-limiter adapter's fail-closed behavior, authentication-guard claim checks, one-time private-upload authorization policy checks, and byte-level image header/dimension validation checks.
+The suite covers method and content-type rejection, same-origin checks, malformed input, base64 validation, MIME/signature mismatch, HTTP and image size limits, privacy/security headers, the expected disabled-provider response, the rate-limiter adapter's fail-closed behavior, authentication-guard claim checks, one-time private-upload authorization policy checks, byte-level image header/dimension validation, and advisory face/photo-quality policy behavior.
 
 ## Security boundary
 
@@ -55,6 +55,16 @@ The suite covers method and content-type rejection, same-origin checks, malforme
 - The PNG fixture is a minimal header fixture, not a complete decodable PNG. These tests do not measure image quality.
 - Before activation, add a maintained hardened decoder in an isolated resource-limited processing boundary, verify actual stored bytes, and safely re-encode.
 - The module is not wired into the endpoint. Provider calls remain disabled.
+
+## Face/photo quality policy — implemented, not wired
+
+`lib/face-quality-policy.js` consumes normalized analyzer measurements and returns advisory issue codes and retake suggestions. It checks face count and framing plus optional sharpness, exposure, clipping and background-uniformity scores.
+
+- Prefer on-device analysis. No face detector dependency or external provider is included.
+- No identity recognition, face matching, age/gender/emotion inference, embeddings, or biometric-template storage is implemented.
+- Thresholds are configurable engineering heuristics, not official passport/visa standards. Missing metrics are reported as not assessed.
+- The policy does not crop, retouch, regenerate or alter the photo, and it cannot certify government acceptance.
+- Unit tests exercise policy logic only; they do not validate a detector's real-world accuracy or official document compliance.
 
 ## Deployment boundary
 
