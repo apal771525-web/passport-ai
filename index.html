@@ -67,6 +67,15 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 </section>
 
 <section class="card">
+<h2>03. Face & photo quality check</h2>
+<p class="note">Optional on-device analysis. Tap Analyze to check face count, approximate framing, sharpness, exposure and background consistency. Your photo is not uploaded by this feature. MediaPipe's library/model are downloaded when you start analysis; its provider may collect usage/performance metrics.</p>
+<button class="secondary" id="analyzeQuality" type="button" disabled>Analyze face & photo quality</button>
+<p id="faceQualityStatus" class="note" role="status" aria-live="polite">Upload a photo first.</p>
+<ul id="faceQualityIssues" class="note"></ul>
+<p class="note">Advisory only. Detector and image-wide heuristics can be wrong. This does not verify identity, change/crop your image, or certify any official passport/visa requirement. Verify the current rules for your exact application.</p>
+</section>
+
+<section class="card">
 <h2>03. Adjust size and framing</h2>
 <div class="grid">
 <div><label for="width">Width (pixels)</label><input type="number" id="width" value="413" min="100" max="3000" inputmode="numeric"></div>
