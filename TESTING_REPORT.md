@@ -1,21 +1,31 @@
-# Country Requirements Registry
+# Automated Testing Report
 
-This registry is intentionally conservative and limited to a small initial set of government sources.
+## Status: NOT RUN / NOT VERIFIED
 
-## Supported routes
+The `node --test` command was not executed by the agent against the current review-branch head. The GitHub Actions query returned no runs for `phase-1-review` and no verified test result is available for SHA `3e68b57f3c88598ae3007b20a5b83f92b0ebd41c`.
 
-| Country | Route | Digital / Printed | Dimensions / rule | Source | Verified |
-| --- | --- | --- | --- | --- | --- |
-| India | Passport, child under 4 | Printed | 35 mm × 45 mm, white background | Passport Seva | 2026-11-13 |
-| United States | Visa, digital | Digital | 600–1,200 px square, 240 KB max | U.S. Department of State | 2026-11-13 |
-| United States | Passport, paper | Printed | 2 × 2 in (51 × 51 mm) | U.S. Department of State | 2026-11-13 |
-| United Kingdom | Passport, digital | Digital | Min 600 × 750 px, 50 KB–10 MB | GOV.UK | 2026-11-13 |
-| United Kingdom | Visa, digital | Digital | Min 600 × 750 px, 50 KB–6 MB | UK Visas and Immigration | 2026-11-13 |
-| Canada | Passport, printed and digital | Printed or digital | 50 × 70 mm or 1,200 × 1,800 px minimum | Government of Canada | 2026-11-13 |
-| Australia | Passport, printed | Printed | 35–40 mm × 45–50 mm | Australian Passport Office | 2026-11-13 |
+Therefore, total tests, passed tests, failures, and skipped tests are **unknown**. Any existing documentation claim that five tests passed is unverified and should not be relied on.
 
-## Important guardrails
-- Unsupported combinations return an explicit unsupported status.
-- One country’s requirements are never applied to another country.
-- Any route requiring original, unaltered images blocks edited exports.
-- This registry does not guarantee government acceptance.
+## Test source currently present
+- `tests/phase1-review.test.js`
+- Tests target the image-validation helper, route lookup/export policy, and backend-disabled status metadata.
+- The helpers are not integrated into the HTML application.
+
+## Required command
+Run from the repository root with Node.js available:
+
+```sh
+node --test
+```
+
+Record the exact branch SHA and actual totals from the command output. Verify the CI run is for that same SHA before treating it as passing.
+
+## Coverage gaps
+- Browser application flows and route enforcement
+- Actual photo signature/decode validation
+- Stale export invalidation after file/route/control changes
+- Export and print behavior
+- PDF structure (the base UI has a print-window flow, not a verified PDF feature)
+- Browser, device, accessibility, network, printer and government-acceptance validation
+
+This report intentionally makes no claim that automated tests passed.
