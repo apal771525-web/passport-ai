@@ -23,6 +23,11 @@ input,select{width:100%;padding:13px;border:1px solid #dce2eb;border-radius:10px
 .upload{border:2px dashed #a7b8d2;border-radius:14px;padding:25px 14px;text-align:center;background:#f8faff;cursor:pointer;line-height:1.5}
 .upload strong{display:block;margin-bottom:6px;color:#234da6}
 .preview{width:100%;max-height:310px;object-fit:contain;display:none;margin:15px auto 0;background:#eef1f5;border-radius:10px}
+.preview-wrap{position:relative;width:100%;margin:15px auto 0;background:#eef1f5;border-radius:10px;overflow:hidden}
+.preview-wrap .preview{display:block;width:100%;max-height:none;height:auto;margin:0;object-fit:contain}
+.crop-guide-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.crop-guide-overlay[hidden]{display:none}
+
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .range-row{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px}
 .range-row output{font-weight:700;color:#2459d3}
@@ -31,10 +36,19 @@ button{width:100%;border:0;padding:15px;border-radius:11px;font-size:16px;font-w
 .primary{background:#2459d3;color:#fff}.secondary{background:#eaf0fc;color:#234da6}
 button:disabled{opacity:.45;cursor:not-allowed}
 .note{color:#667085;font-size:13px;line-height:1.6}
+.requirements{margin-top:14px;padding:15px;border:1px solid #dbe4f0;border-radius:12px;background:#f8faff;line-height:1.55}
+.requirements strong{display:block;margin-bottom:7px;color:#172033}
+.requirements ul{padding-left:20px;margin:8px 0}
+.requirements a{color:#2459d3;font-weight:650;overflow-wrap:anywhere}
+.image-info{margin-top:12px;padding:13px;border:1px solid #dbe4f0;border-radius:11px;background:#f8faff;font-size:13px;line-height:1.6}
+.image-info strong{display:block;color:#172033;margin-bottom:5px}
+.image-info .good{color:#18794e}.image-info .caution{color:#9a5800}
+.policy-warning{color:#8a3b12;background:#fff4e8;border:1px solid #f5d2b5;padding:10px;border-radius:9px;font-size:13px;line-height:1.5}
 #canvas{display:block;max-width:100%;height:auto;margin:12px auto;border:1px solid #e4e7ec;border-radius:8px}
 #canvas[hidden]{display:none}
 #status{padding:10px 12px;background:#f7f9fc;border-radius:9px}
 footer{text-align:center;padding:20px;color:#667085;font-size:13px}
+@media print{body{background:#fff}body *{visibility:hidden!important}#printPage,#printPage *{visibility:visible!important}#printPage{position:absolute;left:0;top:0;width:190mm;padding:0;margin:0}.print-grid{display:grid;grid-template-columns:repeat(2,auto);gap:5mm;align-items:start}.print-grid img{display:block;object-fit:fill;border:0}}
 @media(max-width:420px){.card{padding:16px}.grid{gap:9px}}
 </style>
 </head>
@@ -50,20 +64,57 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <h2>01. Select your document</h2>
 <label for="document">Document type</label>
 <select id="document">
-<option>Passport Photo</option><option>Visa Photo</option><option>ID Card Photo</option><option>Custom Photo</option>
+<option value="passport-paper">Passport photo (printed)</option><option value="passport-digital">Passport photo (digital / online)</option><option value="visa-digital">Visa photo (digital)</option><option value="india-minor-under4">India: minor under 4 (printed photo)</option><option value="id">ID card photo</option><option value="custom">Custom photo</option>
 </select>
 <label for="country">Country / Region</label>
 <select id="country">
-<option value="">Select country</option><option>India</option><option>United States</option><option>United Kingdom</option><option>Canada</option><option>Australia</option><option>Other</option>
+<option value="">Select country</option><option value="India">India</option><option value="United States">United States</option><option value="United Kingdom">United Kingdom</option><option value="Canada">Canada</option><option value="Australia">Australia</option><option value="Other">Other</option>
 </select>
-<p class="note">These selections are for your reference only. Verified country- and document-specific rules are not available in this prototype.</p>
+<p class="note">Choose the exact country and application route. Rules can differ between paper photos, online renewals, visas and overseas applications.</p>
+<div id="requirements" class="requirements" aria-live="polite">
+<strong>Requirements not verified for this selection</strong>
+<p class="note">Select a country and document route to view sourced guidance. If a government requires an original unedited image, Passport AI will warn you not to export an edited copy.</p>
+</div>
 </section>
 
 <section class="card">
 <h2>02. Upload your photo</h2>
 <label class="upload" for="photo"><strong>＋ Choose your selfie</strong>Tap to select a JPG, PNG or WebP image from your phone.<input type="file" id="photo" accept="image/jpeg,image/png,image/webp" hidden></label>
+<div id="previewWrap" class="preview-wrap" hidden>
 <img id="preview" class="preview" alt="Your uploaded photo preview">
+<svg id="cropGuideOverlay" class="crop-guide-overlay" aria-hidden="true" hidden>
+<g stroke="#ffffff" stroke-width="3" stroke-opacity=".9" fill="none">
+<path id="cropGridLines" d="" vector-effect="non-scaling-stroke"/>
+<rect id="detectedFaceBox" x="0" y="0" width="0" height="0" stroke="#35d39a" stroke-width="4" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/>
+</g></svg></div>
+<p id="guideStatus" class="note">Upload a photo to view framing guides. The guides are visual aids only.</p>
 <p class="note">Use a clear, front-facing photo with even lighting. Keep your full head visible; check the crop before downloading.</p>
+<div id="imageInfo" class="image-info" aria-live="polite"><strong>Image check</strong><span>Upload a photo to see its file details and resolution guidance.</span></div>
+<div class="image-info" style="margin-top:12px">
+<strong>On-device face positioning check</strong>
+<p class="note">Only when you tap Analyze: Passport AI loads Google's MediaPipe library and face-detection model. The photo is processed in your browser and is not uploaded by this feature. MediaPipe may send usage/performance metrics to Google. This is an optional framing aid, not an identity check or government compliance test.</p>
+<button class="secondary" id="analyzeFace" type="button" disabled>Analyze face position</button>
+<p id="faceStatus" class="note" role="status" aria-live="polite">Upload a photo first. Face analysis starts only after you tap the button.</p>
+</div>
+<div class="image-info" style="margin-top:12px">
+<strong>Background removal (experimental)</strong>
+<p class="note">Available only in Custom Photo mode. When you tap the button, a MediaPipe person-segmentation model runs in your browser to create a transparent PNG. Edges may be imperfect, especially around hair, glasses or similar-coloured backgrounds. Not for official passport/visa photos where unaltered originals are required. MediaPipe may send usage/performance metrics to Google.</p>
+<button class="secondary" id="removeBackground" type="button" disabled>Remove background</button>
+<p id="backgroundStatus" class="note" role="status" aria-live="polite">Upload a photo and select Custom Photo mode first.</p>
+<canvas id="backgroundCanvas" class="preview" hidden></canvas>
+<label for="backgroundFill">Background for download</label>
+<select id="backgroundFill"><option value="transparent">Keep transparent</option><option value="#ffffff">White</option><option value="#eeeeee">Light grey</option><option value="#e5efff">Light blue</option></select>
+<p class="note">The preview above remains transparent. A selected solid colour is added only to the downloaded copy; your original photo is not changed.</p>
+<button class="secondary" id="downloadBackground" type="button" disabled>Download PNG with selected background</button>
+</div>
+<div class="image-info" style="margin-top:12px">
+<strong>Photo quality signals (basic estimate)</strong>
+<p class="note">Checks brightness, very dark/bright areas and estimated sharpness on a small in-browser sample. Results are approximate and are not an official photo-quality or acceptance check.</p>
+<button class="secondary" id="qualityCheck" type="button" disabled>Run photo quality check</button>
+<p id="qualityStatus" class="note" role="status" aria-live="polite">Upload a photo first. This check runs only when you tap the button.</p>
+</div>
+
+
 </section>
 
 <section class="card">
@@ -94,6 +145,17 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <p id="status" class="note" role="status" aria-live="polite">Upload a photo to begin. Your image is processed locally in this browser.</p>
 <canvas id="canvas" hidden></canvas>
 <button class="primary" id="download" type="button" disabled>Download JPG Photo</button>
+<div id="printTools" hidden>
+<div class="grid">
+<div><label for="printWidth">Print width (mm)</label><input id="printWidth" type="number" min="10" max="100" value="35" inputmode="decimal"></div>
+<div><label for="printHeight">Print height (mm)</label><input id="printHeight" type="number" min="10" max="150" value="45" inputmode="decimal"></div>
+</div>
+<label for="printCopies">Copies on A4 sheet</label>
+<select id="printCopies"><option value="4">4 copies</option><option value="6">6 copies</option><option value="8">8 copies</option><option value="10">10 copies</option></select>
+<button class="secondary" id="printSheetButton" type="button" disabled>Prepare A4 print sheet</button>
+<p class="note">Custom print layout only. Enter your required physical size; 35 × 45 mm is only a starting value, not a verified rule for your document. In the print dialog, choose A4 and 100% / actual size. Printer margins and settings can affect dimensions.</p>
+</div>
+
 </section>
 <p class="note">Privacy: this prototype processes the selected image locally in your browser; it does not send it to a server. It is a photo-sizing tool, not an AI background remover or official compliance checker. Requirements differ by document and country. Do not assume this output will be accepted; verify the latest official instructions before applying.</p>
 </main>
@@ -102,8 +164,105 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 const $ = id => document.getElementById(id);
 const photo = $("photo"), preview = $("preview"), canvas = $("canvas");
 const ctx = canvas.getContext("2d");
-let originalImage = null, imageUrl = null, outputReady = false;
+let originalImage = null, imageUrl = null, outputReady = false, officialUseBlocked = true, originalFile = null;
 
+const requirementProfiles = {
+ "India|india-minor-under4": {
+  title:"India — ordinary passport application, child below 4 years",
+  bullets:["Passport Seva says applicants below 4 years must carry a recent passport-size photograph.","Photo size: 4.5 × 3.5 cm with a white background.","This instruction is specifically for applicants below 4 years; do not apply it to every Indian passport applicant."],
+  warning:"The portal's instructions are specific to children below 4. This editor's processed image is not certified by Passport Seva; confirm the current appointment instructions before use.",
+  source:"https://www.passportindia.gov.in/psp/Apply", sourceLabel:"Passport Seva, Ministry of External Affairs — Apply for an ordinary passport"
+ },
+ "United States|visa-digital": {
+  title:"United States — visa photo",
+  bullets:["Photo size: 2 × 2 inches (51 × 51 mm).","For a digital image, head height from top of hair to chin must be 50%–69% of total image height.","Plain white or off-white background; face forward, neutral expression; glasses are generally not allowed except rare medical circumstances."],
+  warning:"Use the official U.S. visa photo instructions for the exact application and upload workflow. Do not treat a resized image as proof of acceptance.",
+  source:"https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/photos/frequently-asked-questions.html", sourceLabel:"U.S. Department of State — Visa photo FAQs"
+ },
+ "Canada|passport-paper": {
+  title:"Canada — printed passport photo",
+  bullets:["Printed photo size: 50 × 70 mm.","Face height from chin to crown: 31–36 mm.","Two identical, unaltered photos are required; follow the professional photographer and guarantor/studio details in the current application instructions."],
+  warning:"Canada requires unaltered professional passport photos. This editor's crop or export is not a substitute for the required original professional photo.",
+  source:"https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/photos.html", sourceLabel:"Government of Canada — Passport photo requirements"
+ },
+ "United States|passport-paper": {
+  title:"United States — passport photo for paper application",
+  bullets:["Printed photo size: 2 × 2 inches (51 × 51 mm).","Head height: 25–35 mm from chin to crown.","Plain white or off-white background; head and shoulders centred.","Submit the original, unchanged photo. Do not use filters, retouching or AI edits."],
+  warning:"This editor crops/resizes and therefore creates an edited derivative. Do not submit its export as an official US passport photo; follow the State Department instructions and provide an unchanged original.",
+  source:"https://travel.state.gov/en/passports/apply/help/photos.html", sourceLabel:"U.S. Department of State — Passport Photos"
+ },
+ "United States|passport-digital": {
+  title:"United States — online passport renewal",
+  bullets:["Use an original, unedited digital photo taken within the last 6 months.","Plain white/off-white background; face and shoulders centred; even lighting.","The official page stresses no filters or digital changes. Pixel and file-size details should be checked in the live upload workflow."],
+  warning:"Do not use this editor's processed export for the official application: the State Department requires the original, unedited photo.",
+  source:"https://travel.state.gov/en/passports/renew-replace/online/upload-digital-photo.html", sourceLabel:"U.S. Department of State — Uploading a Digital Photo"
+ },
+ "United Kingdom|passport-digital": {
+  title:"United Kingdom — digital passport application",
+  bullets:["Minimum 600 × 750 pixels; file 50 KB–10 MB.","Colour, clear and in focus; plain light-coloured background; no other people or objects.","Must be unaltered. If using your own device, include head, shoulders and upper body — do not crop; the application process crops it."],
+  warning:"Cropping, resizing, background replacement or filtering in this editor would alter the photo. Use the original image for the UK passport application.",
+  source:"https://www.gov.uk/photos-for-passports", sourceLabel:"GOV.UK — Get a passport photo"
+ },
+ "United Kingdom|visa-digital": {
+  title:"United Kingdom — visa application digital photo",
+  bullets:["Minimum 600 × 750 pixels; 50 KB–6 MB; JPG/JPEG; portrait orientation.","Must be clear, in colour, well lit and unaltered; do not mirror or flip.","Plain light-coloured background; face, shoulders and upper body visible."],
+  warning:"The official guidance requires an unaltered image. Do not submit a crop or edited export from this tool.",
+  source:"https://www.gov.uk/guidance/how-to-take-a-photo-for-a-visa-application-or-permission", sourceLabel:"UK Visas and Immigration — Visa photo guidance"
+ },
+ "Canada|passport-digital": {
+  title:"Canada — digital passport photo (online renewal)",
+  bullets:["JPEG/JPG; 3:2 aspect ratio, portrait orientation.","Minimum 1,200 × 1,800 pixels; maximum 3,000 × 4,500 pixels.","File size 200 KB–5 MB; chin-to-crown height must be 45%–50% of image height.","The digital file must come directly from the original camera file; no editing, cropping or repeated-save compression."],
+  warning:"Canada's digital passport rules require an original camera file. Do not submit an edited export from this editor.",
+  source:"https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/photos.html", sourceLabel:"Government of Canada — Passport photo requirements"
+ },
+ "Australia|passport-paper": {
+  title:"Australia — passport printed photos",
+  bullets:["Printed photo size: 35–40 mm wide and 45–50 mm high.","Face height from chin to crown: 32–36 mm.","Plain white or light grey background; even lighting; no retouching.","Two good-quality colour prints are required. The Passport Office recommends professional providers and does not recommend online photo services or mobile apps."],
+  warning:"The Australian Passport Office explicitly cautions against online photo services and mobile apps. Use a professional provider and do not rely on this editor for an Australian passport application.",
+  source:"https://www.passports.gov.au/PhotoGuidelines", sourceLabel:"Australian Passport Office — Photo guidelines"
+ }
+};
+function renderRequirements(){
+ const country = $("country").value;
+ const doc = $("document").value;
+ const panel = $("requirements");
+ const profile = requirementProfiles[country + "|" + doc];
+ officialUseBlocked = doc !== "custom";
+ $("removeBackground").disabled = officialUseBlocked || !originalImage;
+ $("process").disabled = officialUseBlocked;
+ $("download").disabled = officialUseBlocked || !outputReady;
+ $("download").textContent = $("format").value === "image/png" ? "Download PNG Photo" : "Download JPG Photo";
+ $("printTools").hidden = doc !== "custom";
+ $("printSheetButton").disabled = doc !== "custom" || !outputReady;
+ $("removeBackground").disabled = doc !== "custom" || !originalImage;
+ $("downloadBackground").disabled = doc !== "custom" || $("backgroundCanvas").hidden;
+ if (doc !== "custom") $("backgroundCanvas").hidden = true;
+ if (doc === "custom"){
+  officialUseBlocked = false;
+  $("process").disabled = false;
+  $("download").disabled = !outputReady;
+  panel.innerHTML = "<strong>Custom photo mode</strong><p class='note'>You can resize and export a general-purpose image in this mode. This is not an official passport, visa or ID compliance check. Select an official document type to see sourced guidance and safeguards.</p>";
+  return;
+ }
+ if (!country || !profile){
+  const indiaNote = country === "India" ? "India selected: a central Passport Seva source for this exact application route has not yet been verified in this build. Some Indian missions publish different overseas photo instructions; we will not assume those apply universally." : "No verified profile is available for this country and document route yet.";
+  $("process").disabled = true;
+  $("download").disabled = true;
+  panel.innerHTML = "<strong>Official export is disabled for this selection</strong><p class='note'>" + indiaNote + " Select Custom photo for general-purpose editing, or wait until this exact application route has a verified profile.</p>";
+  return;
+ }
+ panel.innerHTML = "<strong>" + profile.title + "</strong><ul>" + profile.bullets.map(x => "<li>" + x + "</li>").join("") + "</ul><p class='policy-warning'>" + profile.warning + "</p><p class='note'>Source: <a href='" + profile.source + "' target='_blank' rel='noopener noreferrer'>" + profile.sourceLabel + "</a><br>Checked: 9 November 2026. Recheck the issuing authority before applying.</p>";
+}
+$("country").addEventListener("change", renderRequirements);
+$("document").addEventListener("change", renderRequirements);
+function updateImageInfo(){
+ const panel = $("imageInfo");
+ if (!originalImage || !originalFile) { panel.innerHTML = "<strong>Image check</strong><span>Upload a photo to see its file details and resolution guidance.</span>"; return; }
+ const bytes = originalFile.size;
+ const sizeLabel = bytes >= 1024*1024 ? (bytes/(1024*1024)).toFixed(2)+" MB" : (bytes/1024).toFixed(1)+" KB";
+ const ratio = (originalImage.width/originalImage.height).toFixed(3);
+ panel.innerHTML = "<strong>Image details</strong><span>"+originalImage.width+" × "+originalImage.height+" px · "+sizeLabel+" · "+originalFile.type+" · aspect ratio "+ratio+"</span><br><span class='good'>Loaded successfully on this device.</span><p class='note'>Resolution guidance is based only on pixel dimensions. This prototype does not yet reliably detect blur, closed eyes, shadows, glare, facial expression or government compliance.</p>";
+}
 function updateRangeLabels(){
  $("qualityValue").textContent = $("quality").value + "%";
  $("zoomValue").textContent = Number($("zoom").value).toFixed(2) + "×";
@@ -115,7 +274,7 @@ $("reset").addEventListener("click", () => {
  $("zoom").value = "1"; $("horizontal").value = "0"; $("vertical").value = "0";
  updateRangeLabels();
  $("status").textContent = "Framing reset. Select Create Photo to update your result.";
- outputReady = false; $("download").disabled = true;
+ outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true;
 });
 photo.addEventListener("change", () => {
  const file = photo.files && photo.files[0];
@@ -130,22 +289,35 @@ photo.addEventListener("change", () => {
  const img = new Image();
  img.onload = () => {
   if (imageUrl) URL.revokeObjectURL(imageUrl);
-  imageUrl = nextUrl; originalImage = img; preview.src = imageUrl;
-  preview.style.display = "block";
+  imageUrl = nextUrl; originalImage = img; originalFile = file; preview.src = imageUrl;
+  $("previewWrap").hidden = false;
+  $("previewWrap").style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight;
+  $("cropGuideOverlay").setAttribute("viewBox","0 0 "+img.naturalWidth+" "+img.naturalHeight);
+  const thirdW=img.naturalWidth/3, thirdH=img.naturalHeight/3;
+  $("cropGridLines").setAttribute("d","M "+thirdW+" 0 V "+img.naturalHeight+" M "+(thirdW*2)+" 0 V "+img.naturalHeight+" M 0 "+thirdH+" H "+img.naturalWidth+" M 0 "+(thirdH*2)+" H "+img.naturalWidth);
+  $("cropGuideOverlay").hidden = false;
+  $("detectedFaceBox").setAttribute("width","0"); $("detectedFaceBox").setAttribute("height","0");
+  $("guideStatus").textContent = "Rule-of-thirds guides are visible. A detected face outline appears after face analysis; guides do not certify document compliance.";
+  updateImageInfo();
+  $("analyzeFace").disabled = false;
+  $("faceStatus").textContent = "Ready. Tap Analyze face position to run the optional on-device check.";
   $("status").textContent = "Photo loaded on this device. Adjust the framing, then create your photo.";
-  outputReady = false; $("download").disabled = true; canvas.hidden = true;
+  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true; $("analyzeFace").disabled = false; $("qualityCheck").disabled = false; $("removeBackground").disabled = officialUseBlocked; $("downloadBackground").disabled = true; $("backgroundCanvas").hidden = true; $("backgroundStatus").textContent = officialUseBlocked ? "Choose Custom Photo mode to use this experimental tool." : "Photo loaded. Tap Remove background to run segmentation locally."; $("qualityStatus").textContent = "New photo loaded. Tap Run photo quality check to analyze it locally."; $("faceStatus").textContent = "New photo loaded. Run analysis again if needed."; canvas.hidden = true;
  };
  img.onerror = () => { URL.revokeObjectURL(nextUrl); alert("This image could not be opened. Please try another photo."); };
  img.src = nextUrl;
 });
 
 $("process").addEventListener("click", () => {
+ if (officialUseBlocked) { alert("Official photo export is disabled for this country/document selection. Choose Custom photo for general-purpose editing."); return; }
  if (!originalImage) { alert("Please upload a photo first."); return; }
  const w = Number($("width").value), h = Number($("height").value);
  if (!Number.isInteger(w) || !Number.isInteger(h) || w < 100 || h < 100 || w > 3000 || h > 3000) {
   alert("Enter whole-number dimensions between 100 and 3000 pixels."); return;
  }
  const backgrounds = {white:"#ffffff",lightgray:"#eeeeee",blue:"#e5efff"};
+ const requiredScale = Math.max(w / originalImage.width, h / originalImage.height);
+ const resolutionNote = requiredScale > 1.01 ? " Warning: this output enlarges the source image by about "+Math.round((requiredScale-1)*100)+"%; quality may look soft." : " Source pixel dimensions are sufficient for this output size before cropping.";
  canvas.width = w; canvas.height = h;
  ctx.fillStyle = backgrounds[$("background").value] || "#ffffff";
  ctx.fillRect(0,0,w,h);
@@ -156,11 +328,11 @@ $("process").addEventListener("click", () => {
  const dy = -extraY * (Number($("vertical").value)+100)/200;
  ctx.drawImage(originalImage,dx,dy,dw,dh);
  canvas.hidden = false;
- $("status").textContent = "Photo created at " + w + " × " + h + " pixels. Review the crop before downloading.";
- outputReady = true; $("download").disabled = false;
+ $("status").textContent = "Photo created at " + w + " × " + h + " pixels. Review the crop before downloading." + resolutionNote;
+ outputReady = true; $("download").disabled = false; $("printSheetButton").disabled = officialUseBlocked;
 });
 $("download").addEventListener("click", () => {
- if (!outputReady || !canvas.width) return;
+ if (officialUseBlocked || !outputReady || !canvas.width) return;
  canvas.toBlob(blob => {
   if (!blob) { alert("Unable to create JPG. Please try again."); return; }
   const format = $("format").value;
@@ -170,7 +342,190 @@ $("download").addEventListener("click", () => {
   setTimeout(() => URL.revokeObjectURL(url),1500);
  },$("format").value,Number($("quality").value)/100);
 });
+$("printSheetButton").addEventListener("click", () => {
+ if (officialUseBlocked || !outputReady || !canvas.width) return;
+ const pw = Number($("printWidth").value), ph = Number($("printHeight").value), copies = Number($("printCopies").value);
+ if (!Number.isFinite(pw) || !Number.isFinite(ph) || pw < 10 || pw > 100 || ph < 10 || ph > 150 || ![4,6,8,10].includes(copies)) {
+  alert("Enter a print size between 10–100 mm wide and 10–150 mm high, and choose a valid copy count."); return;
+ }
+ const popup = window.open("", "_blank");
+ if (!popup) { alert("Your browser blocked the print window. Allow pop-ups for this page and try again."); return; }
+ const data = canvas.toDataURL("image/png");
+ const cells = Array.from({length:copies}, () => "<img alt='Photo copy' src='"+data+"' style='width:"+pw+"mm;height:"+ph+"mm'>").join("");
+ popup.document.open();
+ popup.document.write("<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Passport AI — A4 print sheet</title><style>@page{size:A4;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0}.sheet{width:190mm;display:grid;grid-template-columns:repeat(2,auto);gap:5mm;align-items:start}.sheet img{display:block;object-fit:fill}p{font-size:11px;color:#555;margin:0 0 6mm}@media print{p{display:none}}</style></head><body><p>Custom print layout — check printer settings and measure a test print. Select A4 paper and 100% / actual size.</p><div class='sheet'>"+cells+"</div><script>window.onload=()=>window.print()<\/script></body></html>");
+ popup.document.close();
+});
+$("format").addEventListener("change", renderRequirements);
 updateRangeLabels();
+renderRequirements();
+</script>
+<script type="module">
+const faceButton = document.getElementById("analyzeFace");
+const faceStatus = document.getElementById("faceStatus");
+let faceDetectorPromise = null;
+let lastAnalyzedImage = null;
+async function getFaceDetector(){
+ if (!faceDetectorPromise) {
+  faceDetectorPromise = (async () => {
+   const { FilesetResolver, FaceDetector } = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs");
+   const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm");
+   return await FaceDetector.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite", delegate: "CPU" },
+    runningMode: "IMAGE", minDetectionConfidence: 0.5, minSuppressionThreshold: 0.3
+   });
+  })().catch(error => { faceDetectorPromise = null; throw error; });
+ }
+ return faceDetectorPromise;
+}
+const backgroundButton = document.getElementById("removeBackground");
+const backgroundStatus = document.getElementById("backgroundStatus");
+const backgroundCanvas = document.getElementById("backgroundCanvas");
+const downloadBackground = document.getElementById("downloadBackground");
+let segmenterPromise = null;
+async function getImageSegmenter(){
+ if (!segmenterPromise) {
+  segmenterPromise = (async () => {
+   const {FilesetResolver, ImageSegmenter} = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs");
+   const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm");
+   return await ImageSegmenter.createFromOptions(vision, {
+    baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite",delegate:"CPU"},
+    runningMode:"IMAGE",outputCategoryMask:true,outputConfidenceMasks:false
+   });
+  })().catch(error => {segmenterPromise=null;throw error;});
+ }
+ return segmenterPromise;
+}
+backgroundButton.addEventListener("click", async () => {
+ const image=document.getElementById("preview");
+ if (document.getElementById("document").value !== "custom") {backgroundStatus.textContent="This experimental edit is restricted to Custom Photo mode.";return;}
+ if (!image || !image.complete || !image.naturalWidth) {backgroundStatus.textContent="Upload a photo first.";return;}
+ backgroundButton.disabled=true;downloadBackground.disabled=true;
+ backgroundStatus.textContent="Loading the segmentation model and detecting the person locally… First use may take a little while.";
+ try {
+  const segmenter=await getImageSegmenter();
+  const result=segmenter.segment(image);
+  const mask=result.categoryMask;
+  if (!mask) throw new Error("The model did not return a category mask.");
+  const maskData=mask.getAsUint8Array();
+  const mw=mask.width,mh=mask.height;
+  if (!mw || !mh || !maskData || maskData.length < mw*mh) throw new Error("The segmentation mask was empty.");
+  backgroundCanvas.width=image.naturalWidth;backgroundCanvas.height=image.naturalHeight;
+  const outCtx=backgroundCanvas.getContext("2d",{willReadFrequently:true});
+  outCtx.drawImage(image,0,0);
+  const pixels=outCtx.getImageData(0,0,backgroundCanvas.width,backgroundCanvas.height);
+  for(let y=0;y<backgroundCanvas.height;y++){
+   const my=Math.min(mh-1,Math.floor(y*mh/backgroundCanvas.height));
+   for(let x=0;x<backgroundCanvas.width;x++){
+    const mx=Math.min(mw-1,Math.floor(x*mw/backgroundCanvas.width));
+    if(maskData[my*mw+mx]===0) pixels.data[(y*backgroundCanvas.width+x)*4+3]=0;
+   }
+  }
+  outCtx.putImageData(pixels,0,0);
+  backgroundCanvas.hidden=false;downloadBackground.disabled=false;
+  backgroundStatus.textContent="Background removal finished. Review the transparent preview carefully; segmentation may miss details or remove parts of the subject. Download is available as PNG.";
+  if(result.close) result.close();
+ } catch(error) {
+  backgroundStatus.textContent="Background removal could not run. Check your internet connection and browser support, then try again. "+(error&&error.message?error.message:"");
+ } finally {backgroundButton.disabled=false;}
+});
+downloadBackground.addEventListener("click",()=>{
+ if(backgroundCanvas.hidden||!backgroundCanvas.width)return;
+ const fill=document.getElementById("backgroundFill").value;
+ const exportCanvas=document.createElement("canvas");
+ exportCanvas.width=backgroundCanvas.width;exportCanvas.height=backgroundCanvas.height;
+ const exportCtx=exportCanvas.getContext("2d");
+ if(fill!=="transparent"){exportCtx.fillStyle=fill;exportCtx.fillRect(0,0,exportCanvas.width,exportCanvas.height);}
+ exportCtx.drawImage(backgroundCanvas,0,0);
+ exportCanvas.toBlob(blob=>{
+  if(!blob){backgroundStatus.textContent="Could not create PNG. Please try again.";return;}
+  const url=URL.createObjectURL(blob),link=document.createElement("a");
+  link.href=url;link.download=fill==="transparent"?"passport-ai-transparent-background.png":"passport-ai-background-"+fill.replace("#","")+".png";link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+ },"image/png");
+});
+const qualityButton = document.getElementById("qualityCheck");
+const qualityStatus = document.getElementById("qualityStatus");
+qualityButton.addEventListener("click", () => {
+ const image = document.getElementById("preview");
+ if (!image || !image.complete || !image.naturalWidth) { qualityStatus.textContent = "Upload a photo first."; return; }
+ qualityButton.disabled = true;
+ qualityStatus.textContent = "Checking a small image sample locally…";
+ try {
+  const sample = document.createElement("canvas"), side = 256;
+  const scale = Math.min(1, side / Math.max(image.naturalWidth, image.naturalHeight));
+  sample.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  sample.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const sampleCtx = sample.getContext("2d", {willReadFrequently:true});
+  sampleCtx.drawImage(image, 0, 0, sample.width, sample.height);
+  const pixels = sampleCtx.getImageData(0, 0, sample.width, sample.height).data;
+  const gray = new Float32Array(sample.width * sample.height);
+  let total = 0, dark = 0, bright = 0;
+  for (let p = 0, n = 0; p < pixels.length; p += 4, n++) {
+   const y = 0.2126*pixels[p] + 0.7152*pixels[p+1] + 0.0722*pixels[p+2];
+   gray[n] = y; total += y; if (y < 25) dark++; if (y > 245) bright++;
+  }
+  const count = gray.length, average = total / count;
+  let lapTotal = 0, lapSq = 0, samples = 0;
+  for (let y = 1; y < sample.height-1; y++) for (let x = 1; x < sample.width-1; x++) {
+   const k = y*sample.width+x;
+   const lap = gray[k-1]+gray[k+1]+gray[k-sample.width]+gray[k+sample.width]-4*gray[k];
+   lapTotal += lap; lapSq += lap*lap; samples++;
+  }
+  const variance = samples ? Math.max(0,lapSq/samples-Math.pow(lapTotal/samples,2)) : 0;
+  const notes = [];
+  if (average < 75) notes.push("The sample looks quite dark overall; consider brighter, even lighting.");
+  else if (average > 205) notes.push("The sample looks very bright overall; check for washed-out areas.");
+  else notes.push("Average brightness is within a broad middle range.");
+  const darkPct=dark/count*100, brightPct=bright/count*100;
+  if (darkPct>20) notes.push(Math.round(darkPct)+"% of sampled pixels are very dark.");
+  if (brightPct>20) notes.push(Math.round(brightPct)+"% of sampled pixels are very bright.");
+  if (variance<45) notes.push("Estimated sharpness is low; the photo may be soft, but this simple measure can be misleading.");
+  else notes.push("The sample has visible edge detail; this does not guarantee the face itself is sharp.");
+  qualityStatus.textContent=notes.join(" ")+" These are rough image-wide signals, not face-specific measurements or government rules. Your photo was analyzed in this browser.";
+ } catch(error) {
+  qualityStatus.textContent="Quality check could not run in this browser. "+(error&&error.message?error.message:"");
+ } finally { qualityButton.disabled=false; }
+});
+faceButton.addEventListener("click", async () => {
+ const image = document.getElementById("preview");
+ if (!image || !image.complete || !image.naturalWidth) { faceStatus.textContent = "Upload a photo first."; return; }
+ faceButton.disabled = true;
+ faceStatus.textContent = "Loading face detector and analyzing on this device… First run may take a little longer."; 
+ try {
+  const detector = await getFaceDetector();
+  const result = detector.detect(image);
+  const detections = result && result.detections ? result.detections : [];
+  lastAnalyzedImage = image.src;
+  if (detections.length === 0) {
+   document.getElementById("detectedFaceBox").setAttribute("width","0");
+   document.getElementById("detectedFaceBox").setAttribute("height","0");
+   document.getElementById("guideStatus").textContent = "No face outline available. Rule-of-thirds guides remain visible.";
+   faceStatus.textContent = "No face detected. Try a clear, front-facing photo with the full face visible and even lighting. This can be a detection failure, not proof that the photo is invalid.";
+  } else if (detections.length > 1) {
+   faceStatus.textContent = detections.length + " faces detected. For a single-person document photo, retake with only the applicant in frame. Detection is not an identity or compliance check.";
+  } else {
+   const box = detections[0].boundingBox;
+   const faceRect = document.getElementById("detectedFaceBox");
+   faceRect.setAttribute("x",box.originX); faceRect.setAttribute("y",box.originY);
+   faceRect.setAttribute("width",box.width); faceRect.setAttribute("height",box.height);
+   document.getElementById("cropGuideOverlay").hidden = false;
+   document.getElementById("guideStatus").textContent = "Green outline shows the detector's approximate face box. White lines show thirds. Use these only as visual framing aids.";
+   const cx = (box.originX + box.width/2) / image.naturalWidth;
+   const cy = (box.originY + box.height/2) / image.naturalHeight;
+   const faceW = box.width / image.naturalWidth * 100;
+   const faceH = box.height / image.naturalHeight * 100;
+   const horizontal = cx < 0.42 ? "Face is left of centre; consider moving the framing slightly left." : cx > 0.58 ? "Face is right of centre; consider moving the framing slightly right." : "Face appears roughly centred horizontally.";
+   const vertical = cy < 0.35 ? "Face appears high in the frame." : cy > 0.68 ? "Face appears low in the frame." : "Face appears around the middle vertically.";
+   const score = detections[0].categories && detections[0].categories[0] ? Math.round(detections[0].categories[0].score*100) : null;
+   faceStatus.textContent = "One face detected" + (score === null ? "" : " (model confidence " + score + "%)") + ". Face box: about " + faceW.toFixed(1) + "% of image width × " + faceH.toFixed(1) + "% of image height. " + horizontal + " " + vertical + " These are general framing hints only; they are not official size or acceptance measurements.";
+  }
+ } catch (error) {
+  faceStatus.textContent = "Face analysis could not start. Check your internet connection and try again. Your photo has not been uploaded by Passport AI. Technical detail: " + (error && error.message ? error.message : "unknown error");
+ } finally {
+  faceButton.disabled = false;
+ }
+});
 </script>
 </body>
 </html>
