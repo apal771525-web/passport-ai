@@ -1,17 +1,29 @@
-# QA Release Gate
+# Known Limitations
 
-## Automated gate
-- `node --test` must pass.
-- The repository must remain on a review branch.
-- No real secrets or external credentials may be added.
+This repository is a prototype and is not ready for public production use.
 
-## Human QA gate
-- Test on Android Chrome and desktop Chrome.
-- Validate upload, crop and zoom behavior.
-- Verify document route selection and warnings.
-- Confirm PDF and print layout behavior on real devices.
-- Check accessibility and keyboard operation.
-- Confirm no third-party processing is enabled.
+## Product and frontend
 
-## Release decision
-The current repository is not ready for production deployment or promotion. It remains in review only.
+- The primary UI is a large, monolithic `index.html`.
+- Standalone validation and document-rule modules are not integrated across all UI workflows.
+- Real Android Chrome, desktop browser, accessibility and printer testing have not been evidenced.
+- Optional MediaPipe scripts/models load from external hosts; network and privacy behavior needs explicit review.
+- Image quality estimates are advisory, not official compliance checks.
+
+## Country rules
+
+- The registry covers only a small initial set of routes.
+- Exact official requirements may change and have not been independently revalidated for launch.
+- Fuzzy route matching can select an unintended rule; stable exact route IDs are required.
+- No guarantee of government acceptance is possible.
+
+## Backend and business
+
+- No production backend, authentication, database, durable storage or account system.
+- No live rate limiting or production authorization.
+- No approved external image-processing provider.
+- No payment, subscription, refund or admin workflows.
+
+## Release
+
+Do not treat the application as production-ready until automated tests pass on the target commit and browser/device, privacy, security, accessibility and official-source verification gates are completed.
