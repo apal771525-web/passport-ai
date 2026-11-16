@@ -1,27 +1,32 @@
-# Phase 1 Completion Report
+# Security Review
 
-## Audit summary
-Repository state at the start of this review:
-- One primary file, `index.html`, contains the product prototype.
-- No production backend, no database configuration, and no test runner were in place.
-- No README or architecture documentation existed.
-- No branch safety review had been enforced in a controlled review branch.
+## Current posture
 
-## Phase 1 actions performed
-- Created a safe review branch: `phase-1-review`.
-- Preserved `main` and all existing PRs.
-- Added a minimal but maintainable JS module structure.
-- Added upload validation and unsupported-format checks.
-- Added explicit document-route registry with official source references.
-- Added backend-disabled status guard and security documentation.
-- Added automated Node tests.
-- Added required Phase 1 documentation files.
+The repository snapshot does not contain an active production backend, authentication service, database, durable storage or configured image provider. This limits server-side exposure but is not a production security certification.
 
-## Status
-This repository is PARTIALLY COMPLETE for Phase 1. The foundation is safer and more reviewable, but it is still not a production-ready or government-accepted passport tool.
+## Existing code-level measures
 
-## Remaining blockers
-- Real browser/device QA is still required.
-- No external provider approval exists.
-- No production deployment or merge occurred.
-- The backend stays disabled as required.
+- A standalone client-side image type/size validation helper exists.
+- A standalone document-rule registry exists.
+- Backend status metadata explicitly says backend functionality is disabled.
+
+These helpers are not integrated into every UI workflow. Browser-reported MIME and file size are not sufficient server-side security controls.
+
+## Missing controls
+
+- Server-side file signature validation and hardened image decoding.
+- Authentication, authorization and account lifecycle.
+- Production rate limiting and abuse prevention.
+- Private object storage, upload authorization and secure deletion.
+- Security headers/CSP and a reviewed origin policy.
+- Dependency and third-party script/model review.
+- Secret management, monitoring and incident response.
+- Security testing and threat modelling.
+
+## Required future controls
+
+Treat all uploaded files as untrusted. Enforce limits before parsing, verify signatures and decode safely, isolate processing, prevent public-by-default storage, avoid logging personal data, and use least privilege. Any external provider must require explicit user consent and a documented privacy/security review.
+
+## Conclusion
+
+Status: **prototype only; security review incomplete**. Do not claim production security or enable backend/provider services until controls are implemented and independently tested.
