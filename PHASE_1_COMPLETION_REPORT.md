@@ -1,54 +1,47 @@
-# Phase 1 Completion Report
+# Phase 1 Review — Status Report
 
-## Final status: BLOCKED — not complete
+## Status: BLOCKED / PARTIALLY COMPLETE
 
-The Phase 1 acceptance gate is not satisfied. This is a review-only snapshot; do not merge, deploy, publish, or enable production services based on this report.
+This report describes the repository review, not a production release. Phase 1 acceptance criteria have not been met.
 
-## Verified repository state
+## Repository state
+
 - Repository: `apal771525-web/passport-ai`
-- Review branch: `phase-1-review`
-- Latest confirmed branch SHA: `3e68b57f3c88598ae3007b20a5b83f92b0ebd41c`
-- The branch was created from `main` at `cfbbf8edbce88299ba3588a792b7295c3d2c2713`.
-- The initial repository tree contained only `index.html`; review branch added a package manifest, helper modules, tests, and documentation.
-- Main remains unchanged by the reviewed branch commits. PRs #5 and #6 remain open and unmerged. No production deployment was requested or performed.
+- Stable branch: `main`
+- Phase 1 review branch: `phase-1-review`
+- The review branch was merged through PR #7.
+- Merge commit on main: `3741e000cca83a882a1978e0426a7972e04b5ead`
+- This report is being corrected on a separate documentation branch; it does not authorize a merge or deployment.
 
-## Audit findings
-- `index.html` remains a large, monolithic application containing styling, upload, document guidance, image manipulation, export/print behavior, and optional MediaPipe loading.
-- The new `src/document-rules.js` registry is not integrated into the UI. The UI keeps separate route rules, so the two sources can diverge.
-- The upload UI relies on browser-reported MIME/size and browser decoding. The helper module is also not wired to the upload; neither gives server-side file signature or hardened decoder validation.
-- Optional MediaPipe code/model are fetched from external hosts when invoked. Local image processing does not mean the page makes no third-party network requests.
-- No production backend, authentication, authorization, durable storage, live rate limiting, provider adapter, or secure deletion is implemented.
-- The initial review-branch write introduced content/path mistakes (code in README, rules in backend status file, and mismatched docs). A later commit fixed module paths, but the documentation set at this SHA still has mismatched contents (for example, `TESTING_REPORT.md` contains country requirements and `README.md` contains JavaScript).
+## Findings
 
-## PR comparison
-- PR #5 is an open, unmerged one-file frontend change adding MediaPipe background segmentation. It reports preview-stage risks, CDN/model loading, and outstanding device QA. It should not be copied wholesale into this review branch without fixing policy, performance, accessible state, and route enforcement concerns.
-- PR #6 is an open, unmerged backend/security blueprint with disabled provider processing, validation contracts, policy modules, print/PDF and test changes. Its described functions are largely scaffolding; auth/rate-limit/upload modules are not activated protection. Its newer head has reported checks in PR metadata, but those are not test results for this separate review branch SHA.
-- Neither PR was merged or copied into `phase-1-review`.
+- `index.html` is a large, monolithic browser application.
+- Standalone helpers exist for image validation, document rules and backend-disabled status.
+- The document registry is not integrated as the sole source of truth in the UI.
+- Fuzzy route matching needs replacement with exact route identifiers.
+- Optional MediaPipe code/models may load from third-party hosts.
+- There is no production backend, authentication, authorization, database, durable storage, live rate limiter or approved provider.
+- Payments, subscriptions and admin dashboard are not implemented.
+- Country requirements require exact route-by-route official-source verification.
 
-## Changes on this branch
-- Added `package.json`, a simple image-validation helper, document rules helper, backend-disabled status metadata, one Node test file, `.env.example`, and documentation files.
-- No product UI integration was made.
-- No files were deleted.
-- The attempted follow-up correction to docs and CI did not land: GitHub reported that the agent lacks permission to push to this repository.
+## Documentation integrity issue
 
-## Testing and QA
-- `node --test` was not executed in this environment.
-- No GitHub Actions run was found for `phase-1-review` at the confirmed head SHA.
-- Exact test totals, pass/fail/skip counts are unknown. Existing documentation on this branch claiming five tests passed is not substantiated and must not be trusted.
-- Android Chrome, desktop browser, assistive technology, network failure, and physical printer QA have not been performed.
+Several documentation files on main contain content belonging to other files (for example, README contains backend status code; COUNTRY_REQUIREMENTS contains privacy content; QA_RELEASE_GATE contains testing content). This repair branch restores the intended subject matter. Verify each file after the proposed changes.
 
-## Completion estimate
-**35% (7/20 work areas with at least a partial artifact).** This is an explicit progress estimate, not a quality score or acceptance. The audit identified documentation integrity, implementation integration, official-source verification, automated execution, and human QA as outstanding.
+## Testing
 
-## Critical blockers before advancing
-1. Obtain repository write permission so documentation can be corrected; current write attempt was denied.
-2. Correct the mismatched documentation files and ensure `.env.example` contains only variable names/placeholders.
-3. Run `node --test` on the exact branch SHA and record actual totals; add CI and verify the resulting workflow run.
-4. Replace fuzzy document matching with exact route IDs and test blocked export routes.
-5. Independently validate every registry statement against official sources for the exact route; do not use search snippets or unsupported requirements as authority.
-6. Integrate a single requirements source into the UI, preserve the existing workflow, and test that route changes invalidate stale outputs and prevent prohibited exports.
-7. Complete browser/device/accessibility/privacy/security and physical printing QA.
-8. Keep backend/provider/auth/storage disabled until each is implemented, reviewed, and separately approved.
+The Node test suite exists, but this review session has not executed `node --test` against the current main SHA. Test totals remain unknown. Browser/device and physical print QA are also outstanding.
 
-## Phase 2 starting point
-Start with repository write access and documentation integrity, then exact route identifiers and a single source-of-truth registry. Next run and verify CI on the review branch before any UI integration. Do not begin external provider activation or deployment.
+## Required blockers before Phase 1 can be accepted
+
+1. Correct and verify documentation integrity.
+2. Run tests against the exact commit and add CI evidence.
+3. Integrate a single requirements registry with exact route IDs.
+4. Verify official sources and editing restrictions for every supported route.
+5. Add UI and browser-level tests for upload, route changes and export restrictions.
+6. Complete mobile, desktop, accessibility, privacy and security QA.
+7. Keep backend, storage, authentication and external provider integrations disabled until separately designed and approved.
+
+## Decision
+
+Phase 1 is not complete. Do not merge this review report as proof of readiness, do not deploy, and do not enable production services based solely on this work.
