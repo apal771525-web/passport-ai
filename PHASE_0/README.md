@@ -25,6 +25,8 @@ Phase 0 establishes a verified product, engineering, privacy, compliance, and de
 4. [Delivery plan and acceptance gates](DELIVERY_PLAN.md)
 5. [Competitor research](COMPETITOR_RESEARCH.md)
 6. [Country and document route research](COUNTRY_ROUTE_RESEARCH.md)
+7. [User journeys and screen specification](USER_JOURNEYS.md)
+8. [Decisions and prioritised backlog](DECISIONS_AND_BACKLOG.md)
 
 
 ## Decision rules
