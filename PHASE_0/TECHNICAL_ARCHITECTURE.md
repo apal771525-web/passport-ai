@@ -26,7 +26,11 @@ The inspected main branch is a lightweight HTML-first prototype. It does not yet
 6. Data layer: minimal account and transaction data only if accounts/payments are approved.
 7. Observability: privacy-safe operational metrics and error reporting.
 
-## 4. Technology candidates
+## 4. Recommended technology direction
+
+The detailed global comparison and trade-offs are recorded in [GLOBAL_TECHNOLOGY_DECISION.md](GLOBAL_TECHNOLOGY_DECISION.md). Current recommendation is a Next.js App Router + React + TypeScript modular monolith, browser-first image processing with Canvas/Web Workers, and a deterministic TypeScript compliance engine. PostgreSQL, authentication, object storage and payment services remain conditional on approved product requirements. This is a recommendation, not an implementation decision.
+
+## 4A. Technology candidates and status
 
 | Layer | Candidate | Decision status |
 |---|---|---|
