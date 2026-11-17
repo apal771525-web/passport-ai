@@ -11,24 +11,24 @@
 | ADR-002 | Route selection | Country-only presets are insufficient. | Select country, authority, document, application channel and relevant applicant category. | Proposed |
 | ADR-003 | Original image | Some routes prohibit image alteration. | Keep immutable original; derived copies only; route policy blocks prohibited operations. | Proposed |
 | ADR-004 | Processing privacy | Existing prototype does not establish production privacy architecture. | Prefer local processing where feasible; server processing only with disclosed purpose and consent. | Proposed |
-| ADR-005 | Frontend architecture | Current app is primarily a single HTML file. | Evaluate modular TypeScript frontend; decide framework after a small migration/complexity assessment. | Open |
-| ADR-006 | Image pipeline | Image processing needs file signature validation, safe limits and deterministic export. | Browser Canvas/Web Workers for eligible operations; server-side processing only where justified. | Proposed |
+| ADR-005 | Frontend architecture | Current app is primarily a single HTML file; product needs internationalised routes and maintainable UI. | Recommend Next.js App Router + React + TypeScript as a modular monolith; validate migration cost and low-end Android performance in an approved spike. | Recommended; founder approval pending |
+| ADR-006 | Image pipeline | Image processing needs file signature validation, safe limits and deterministic export. | Browser Canvas + Web Workers/OffscreenCanvas where supported; route policy gates every transform; local-first. | Recommended |
 | ADR-007 | Compliance data | Requirements change and are route-specific. | Versioned rule registry with official sources, last-checked date, review status and change history. | Proposed |
-| ADR-008 | Backend | Production auth, storage, payments and provider configuration are not established. | Defer backend until MVP needs accounts, server processing or paid services. | Open |
+| ADR-008 | Backend | Production auth, storage, payments and provider configuration are not established. | Start with Next.js server routes only for necessary server functions; defer separate services, accounts and persistence until justified. | Recommended; scope pending |
 | ADR-009 | Hosting | Two Vercel projects are connected to the repository; ownership/canonical project unresolved. | Keep current projects/settings unchanged until domain and deployment review is approved. | Hold |
 | ADR-010 | Monitoring | Image data is sensitive. | Privacy-safe event logging; never log image bytes, face embeddings or unnecessary EXIF. | Proposed |
 | ADR-011 | Monetisation | Willingness to pay and price sensitivity are unvalidated. | Test one-time pricing against free basic workflow before committing to subscriptions. | Open |
 | ADR-012 | Human review | Competitors use expert review, but operating cost and staffing are unknown. | Do not advertise human review until staffing, SLA, quality process and privacy controls exist. | Hold |
 
-## 2. Proposed technology evaluation
+## 2. Technology recommendation
 
-This is an evaluation shortlist, not a final stack decision.
+The detailed evaluation is in [Global Technology Decision](GLOBAL_TECHNOLOGY_DECISION.md). Strong recommendation: Next.js App Router + React + TypeScript modular monolith; browser-first Canvas/Web Workers image engine; pure TypeScript route-compliance engine; PostgreSQL and private object storage only when a validated feature requires persistence. This remains a recommendation pending founder approval and a technical spike.
 
 | Layer | Candidate | Why evaluate it | Must validate |
 |---|---|---|---|
-| Frontend | TypeScript with a modular component framework | Better structure, testability and maintainability than a growing monolithic page. | Migration cost, mobile performance, accessibility, compatibility with current prototype. |
+| Frontend | Next.js App Router + React + TypeScript | Typed modular application, server/client separation, mature ecosystem. | Migration cost, mobile performance, accessibility, bundle size, current prototype compatibility. |
 | Styling | Existing styles first; utility CSS only if useful | Avoid unnecessary redesign or churn. | Design consistency and bundle size. |
-| Image operations | Browser Canvas plus Web Workers | Local processing can reduce image uploads and improve privacy. | Browser support, memory limits, output accuracy, performance on low-end Android. |
+| Image operations | Canvas + Web Workers/OffscreenCanvas where supported | Local processing can reduce uploads and keep heavy work off the UI thread. | Browser support, memory limits, output accuracy, performance on low-end Android. |
 | Visual assistance | Optional on-device model evaluation | Could provide framing/lighting guidance. | Accuracy, model licensing, device performance, bias, and no identity recognition. |
 | API/backend | Defer until required | Avoid premature server and data complexity. | Clear use case, abuse controls, cost, data retention and security. |
 | Database | Defer until accounts/history are approved | No need to store personal data for a simple local workflow. | Data minimisation and deletion design. |
