@@ -27,6 +27,7 @@ Phase 0 establishes a verified product, engineering, privacy, compliance, and de
 6. [Country and document route research](COUNTRY_ROUTE_RESEARCH.md)
 7. [User journeys and screen specification](USER_JOURNEYS.md)
 8. [Decisions and prioritised backlog](DECISIONS_AND_BACKLOG.md)
+9. [Global technology decision](GLOBAL_TECHNOLOGY_DECISION.md)
 
 
 ## Decision rules
