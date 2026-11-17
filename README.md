@@ -44,7 +44,8 @@ A test file exists, but test results must be run and recorded against the exact 
 
 ## Repository workflow
 
-- `main` is protected as the stable integration branch.
+- Treat `main` as the stable integration branch.
+- Branch protection is not confirmed by this README; repository administrators should verify the actual GitHub ruleset and branch-protection settings.
 - Make changes on feature or review branches and open pull requests.
 - Do not merge, publish or deploy without explicit project-owner approval.
 - Vercel is outside the scope of this repository documentation update.
