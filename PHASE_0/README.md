@@ -23,6 +23,9 @@ Phase 0 establishes a verified product, engineering, privacy, compliance, and de
 2. [Technical architecture proposal](TECHNICAL_ARCHITECTURE.md)
 3. [Security and privacy requirements](SECURITY_PRIVACY.md)
 4. [Delivery plan and acceptance gates](DELIVERY_PLAN.md)
+5. [Competitor research](COMPETITOR_RESEARCH.md)
+6. [Country and document route research](COUNTRY_ROUTE_RESEARCH.md)
+
 
 ## Decision rules
 
