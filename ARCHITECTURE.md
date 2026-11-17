@@ -1,40 +1,39 @@
-# Passport AI
+# Architecture Overview
 
-Passport AI is a static, browser-first photo preparation prototype for passport, visa and ID-style photo workflows. The repository currently contains a single HTML entry point and a small validation/rules layer for safer, testable Phase 1 work.
+## Current shape
 
-Status: PARTIALLY COMPLETE
+Passport AI is currently a browser-first prototype, not a complete production web platform.
 
-What is implemented
-- Single-page photo editor UI in `index.html`.
-- Local-only image validation and safety checks.
-- A minimal country/document requirements registry for key routes.
-- Backend scaffold explicitly disabled by design.
-- Automated tests for validation, unsupported routes and backend-disabled state.
+- `index.html`: monolithic page containing the primary UI and much of the client-side workflow.
+- `src/image-validation.js`: standalone image metadata/type/size validation helpers.
+- `src/document-rules.js`: standalone country/document requirements registry.
+- `src/backend-disabled-status.js`: explicit statement that a production backend is not enabled.
+- `tests/phase1-review.test.js`: Node test coverage for selected helper functions.
 
-What is not yet production-ready
-- There is no live backend, production auth, external provider integration, or durable storage.
-- No browser/device QA has been performed in this environment.
-- No external AI provider or paid image-processing service is configured.
-- No government acceptance guarantee is made.
+The helper modules are not yet wired into every UI path. The HTML UI and registry can therefore diverge.
 
-Phase 1 emphasis
-- Preserve working front-end behaviors.
-- Keep the backend disabled until secure provider approval exists.
-- Validate file types and sizes.
-- Make route handling explicit and fail closed when sources are unsupported.
-- Prepare accurate documentation and test coverage.
+## Runtime and data flow
 
-Repository posture
-- This branch is `phase-1-review`.
-- No direct changes were made to `main`.
-- No deployment, merge, or external publication occurred.
+The intended current workflow is browser-side photo selection, preview, positioning and export. Optional MediaPipe scripts/models may be downloaded from external hosts when their feature is invoked. “Local image processing” does not mean the page makes no network requests.
 
-Testing
-- Run: `node --test`
+No production API, authentication service, database, object storage, durable upload flow or external image provider is configured in this repository snapshot.
 
-Key files
-- `index.html` — main UI.
-- `src/image-validation.js` — upload validation and image checks.
-- `src/document-rules.js` — country/document requirements registry.
-- `src/backend-disabled-status.js` — explicit disabled backend status.
-- `tests/` — automated tests.
+## Intended future boundaries
+
+1. Frontend: accessible document selection, photo editor, clear policy warnings and exports.
+2. Requirements service: versioned, exact country/document route IDs backed by official sources and verification dates.
+3. Backend: authentication, authorization, short-lived upload intents, validation and rate limiting.
+4. Storage: private, time-limited storage only where necessary, with documented deletion.
+5. Providers: explicitly approved image-processing adapters with informed consent and strict data minimization.
+
+## Safety constraints
+
+- Unsupported document routes must fail closed.
+- Do not infer requirements from country alone; the exact document and application channel matter.
+- Do not alter photos for routes whose authority requires an unaltered image.
+- Never promise government acceptance.
+- Keep backend and external provider integrations disabled until separately reviewed and approved.
+
+## Quality gates
+
+Run `node --test` and verify the result against the exact commit. Complete browser/device, accessibility, privacy and security reviews before production release.

@@ -1,31 +1,44 @@
-# Automated Testing Report
+# Testing Report
 
-## Status: NOT RUN / NOT VERIFIED
+## Current verified status
 
-The `node --test` command was not executed by the agent against the current review-branch head. The GitHub Actions query returned no runs for `phase-1-review` and no verified test result is available for SHA `3e68b57f3c88598ae3007b20a5b83f92b0ebd41c`.
+Automated tests are defined in `tests/phase1-review.test.js` and the package script is `node --test`. In this documentation repair task, the test command has **not** been executed in a Node.js runtime. Therefore current pass/fail/skip totals are unknown.
 
-Therefore, total tests, passed tests, failures, and skipped tests are **unknown**. Any existing documentation claim that five tests passed is unverified and should not be relied on.
+Do not rely on earlier documentation claims of five passing tests; they were not substantiated against the current main commit.
 
-## Test source currently present
-- `tests/phase1-review.test.js`
-- Tests target the image-validation helper, route lookup/export policy, and backend-disabled status metadata.
-- The helpers are not integrated into the HTML application.
+## Existing test coverage
 
-## Required command
-Run from the repository root with Node.js available:
+The test file covers selected helper behavior:
+- Supported and unsupported image MIME values and file-size limits.
+- Unsupported document route behavior.
+- A small number of country-rule and editing-policy checks.
+- Backend-disabled status metadata.
+
+This does not establish that the helper modules are integrated into the HTML UI or that the end-to-end app works.
+
+## Required next test run
+
+From the repository root, run:
 
 ```sh
 node --test
 ```
 
-Record the exact branch SHA and actual totals from the command output. Verify the CI run is for that same SHA before treating it as passing.
+Record:
+- Exact commit SHA.
+- Node.js version.
+- Test files discovered.
+- Passed, failed and skipped totals.
+- Full failure output and remediation commits.
 
-## Coverage gaps
-- Browser application flows and route enforcement
-- Actual photo signature/decode validation
-- Stale export invalidation after file/route/control changes
-- Export and print behavior
-- PDF structure (the base UI has a print-window flow, not a verified PDF feature)
-- Browser, device, accessibility, network, printer and government-acceptance validation
+## Missing coverage
 
-This report intentionally makes no claim that automated tests passed.
+- Browser-level user journeys and mobile layout.
+- Actual image file signatures and malformed image decoding.
+- Crop/export correctness and output metadata.
+- Route-switch invalidation and prohibited exports.
+- PDF/print layout and physical print measurements.
+- Accessibility, third-party network requests and privacy behavior.
+- Security, performance and abuse testing.
+
+A test suite passing is necessary but not sufficient for release.

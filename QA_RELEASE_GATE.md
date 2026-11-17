@@ -1,24 +1,31 @@
-# Testing Report
+# QA and Release Gate
 
-## Automated tests
-Executed with: `node --test`
+A deployment or public release must not be considered ready until every applicable gate below has evidence tied to the exact commit.
 
-Summary
-- 5 tests executed.
-- 0 failures.
-- 0 skipped.
+## Automated
 
-Coverage includes
-- valid image uploads
-- unsupported image types
-- oversize file rejection
-- unsupported document routes
-- backend disabled state
+- Run `node --test`.
+- Record exact commit SHA and real pass/fail/skip totals.
+- Add CI and confirm its run is for that same SHA.
+- Add tests for exact route IDs, blocked export routes and stale output invalidation.
 
-## Manual tests still required
-- Real Android Chrome capture
-- Real desktop Chrome workflow
-- Photo upload and crop on physical devices
-- Print sizing checks with actual paper and rulers
-- Accessibility review with assistive technology
-- Network failure handling
+## Manual browser/device QA
+
+- Android Chrome and desktop Chrome.
+- Upload, invalid file, large file, decode failure and network failure.
+- Crop, zoom, positioning, reset and export.
+- Country/document switching and warning consistency.
+- JPG/PNG output dimensions and file sizes.
+- Print sheet physical dimensions using a ruler.
+- Keyboard navigation, screen-reader labels, contrast and focus states.
+
+## Security and privacy
+
+- Verify all network requests, including third-party scripts and model downloads.
+- Confirm no image bytes or personal data enter logs.
+- Review CSP, dependency integrity, XSS exposure and file handling.
+- Do not enable authentication, storage or provider processing without separate review and approval.
+
+## Release decision
+
+Current status: **NOT READY / NOT VERIFIED**. No production deployment or release is authorized by this document.
