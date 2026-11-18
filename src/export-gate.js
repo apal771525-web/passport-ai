@@ -50,8 +50,7 @@ export function authorizeExport({
   outputConstraints,
   expectedVersion,
   expectedFingerprint,
-  now = new Date(),
-  policyEngine = evaluatePolicy
+  now = new Date()
 } = {}) {
   try {
     if (!Array.isArray(policySet) || policySet.length === 0 ||
@@ -63,8 +62,7 @@ export function authorizeExport({
         !requestedOperations.every((operation) => typeof operation === 'string' && operation.trim() !== '') ||
         !isPlainRecord(outputConstraints) || !isPlainJson(outputConstraints) ||
         !isPositiveInteger(expectedVersion) ||
-        typeof expectedFingerprint !== 'string' || expectedFingerprint.length === 0 ||
-        typeof policyEngine !== 'function') {
+        typeof expectedFingerprint !== 'string' || expectedFingerprint.length === 0) {
       return denied(REASON.INVALID_REQUEST);
     }
     const matches = policySet.filter((policy) => policy.policyId === routeId);
@@ -77,7 +75,7 @@ export function authorizeExport({
     if (stableJson(outputConstraints) !== stableJson(policy.constraints)) {
       return denied(REASON.OUTPUT_CONSTRAINTS_MISMATCH, policy.policyVersion);
     }
-    const engineDecision = policyEngine({
+    const engineDecision = evaluatePolicy({
       routeKey: policy.route,
       policies: policySet,
       operations: requestedOperations,
