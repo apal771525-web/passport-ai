@@ -34,11 +34,12 @@ function denied(reasonCode) {
 }
 export function authorizeUiExport({ formState, policySet, now = new Date(), policyEngine } = {}) {
   try {
-    if (!isPlainRecord(formState) || !isSafeFormData(formState)) return denied('INVALID_UI_INPUT');
+    if (!isPlainRecord(formState)) return denied('INVALID_UI_INPUT');
     const fields = Object.keys(formState);
     if (fields.length !== FORM_FIELDS.size || fields.some((field) => !FORM_FIELDS.has(field))) {
       return denied('UNKNOWN_UI_FIELD');
     }
+    if (!isSafeFormData(formState)) return denied('INVALID_UI_INPUT');
     const request = {
       policySet,
       routeId: formState.routeId,
