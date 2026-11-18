@@ -7,14 +7,12 @@ const FORM_FIELDS = new Set([
   'expectedVersion',
   'expectedFingerprint'
 ]);
-
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isPlainRecord = (value) => {
   if (!isRecord(value)) return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 };
-
 function isSafeFormData(value, seen = new Set()) {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return true;
   if (typeof value === 'number') return Number.isFinite(value);
@@ -26,19 +24,14 @@ function isSafeFormData(value, seen = new Set()) {
   if (Array.isArray(value)) return value.every((item) => isSafeFormData(item, seen));
   if (!isPlainRecord(value)) return false;
   return Object.entries(value).every(([key, item]) =>
-    !/(image|bytes|base64|file|path|exif|gps|biometric|face|landmark|embedding|element|node|target)/i.test(key) &&
+    !/(image|base64|file|path|exif|gps|biometric|face|landmark|embedding|element|node|target)/i.test(key) &&
+    !/^bytes$/i.test(key) &&
     isSafeFormData(item, seen)
   );
 }
-
 function denied(reasonCode) {
   return { allowed: false, reasonCode, policyVersion: null };
 }
-
-/**
- * Converts a strictly allow-listed plain UI form state to an export-gate request.
- * policySet and policyEngine are trusted application dependencies, never form fields.
- */
 export function authorizeUiExport({ formState, policySet, now = new Date(), policyEngine } = {}) {
   try {
     if (!isPlainRecord(formState) || !isSafeFormData(formState)) return denied('INVALID_UI_INPUT');
@@ -46,7 +39,6 @@ export function authorizeUiExport({ formState, policySet, now = new Date(), poli
     if (fields.length !== FORM_FIELDS.size || fields.some((field) => !FORM_FIELDS.has(field))) {
       return denied('UNKNOWN_UI_FIELD');
     }
-
     const request = {
       policySet,
       routeId: formState.routeId,
@@ -57,7 +49,6 @@ export function authorizeUiExport({ formState, policySet, now = new Date(), poli
       now
     };
     if (policyEngine !== undefined) request.policyEngine = policyEngine;
-
     const result = authorizeExport(request);
     if (!isPlainRecord(result) || typeof result.allowed !== 'boolean' ||
         typeof result.reasonCode !== 'string' ||
