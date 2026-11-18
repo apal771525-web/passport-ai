@@ -32,7 +32,7 @@ function isSafeFormData(value, seen = new Set()) {
 function denied(reasonCode) {
   return { allowed: false, reasonCode, policyVersion: null };
 }
-export function authorizeUiExport({ formState, policySet, now = new Date(), policyEngine } = {}) {
+export function authorizeUiExport({ formState, policySet, now = new Date() } = {}) {
   try {
     if (!isPlainRecord(formState)) return denied('INVALID_UI_INPUT');
     const fields = Object.keys(formState);
@@ -49,7 +49,6 @@ export function authorizeUiExport({ formState, policySet, now = new Date(), poli
       expectedFingerprint: formState.expectedFingerprint,
       now
     };
-    if (policyEngine !== undefined) request.policyEngine = policyEngine;
     const result = authorizeExport(request);
     if (!isPlainRecord(result) || typeof result.allowed !== 'boolean' ||
         typeof result.reasonCode !== 'string' ||
