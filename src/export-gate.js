@@ -10,7 +10,6 @@ const REASON = Object.freeze({
   POLICY_ENGINE_ERROR: 'POLICY_ENGINE_ERROR',
   POLICY_DENIED: 'POLICY_DENIED'
 });
-
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isPlainRecord = (value) => {
   if (!isRecord(value)) return false;
@@ -18,7 +17,6 @@ const isPlainRecord = (value) => {
   return prototype === Object.prototype || prototype === null;
 };
 const isPositiveInteger = (value) => Number.isInteger(value) && value > 0;
-
 function isPlainJson(value, seen = new Set()) {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return true;
   if (typeof value === 'number') return Number.isFinite(value);
@@ -30,11 +28,11 @@ function isPlainJson(value, seen = new Set()) {
   if (Array.isArray(value)) return value.every((item) => isPlainJson(item, seen));
   if (!isPlainRecord(value)) return false;
   return Object.entries(value).every(([key, item]) =>
-    !/(image|bytes|base64|file|path|exif|gps|biometric|face|landmark|embedding|element|node|target)/i.test(key) &&
+    !/(image|base64|file|path|exif|gps|biometric|face|landmark|embedding|element|node|target)/i.test(key) &&
+    !/^bytes$/i.test(key) &&
     isPlainJson(item, seen)
   );
 }
-
 function stableJson(value) {
   if (Array.isArray(value)) return '[' + value.map(stableJson).join(',') + ']';
   if (isRecord(value)) {
@@ -42,16 +40,9 @@ function stableJson(value) {
   }
   return JSON.stringify(value);
 }
-
 function denied(reasonCode, policyVersion = null) {
   return { allowed: false, reasonCode, policyVersion: isPositiveInteger(policyVersion) ? policyVersion : null };
 }
-
-/**
- * The only export authorization entry point.
- * policyEngine is a dependency-injection seam for deterministic tests; UI form data
- * is never allowed to supply it. Production defaults to the route-policy engine.
- */
 export function authorizeExport({
   policySet,
   routeId,
@@ -76,19 +67,16 @@ export function authorizeExport({
         typeof policyEngine !== 'function') {
       return denied(REASON.INVALID_REQUEST);
     }
-
     const matches = policySet.filter((policy) => policy.policyId === routeId);
     if (matches.length === 0) return denied(REASON.ROUTE_NOT_FOUND);
     if (matches.length !== 1) return denied(REASON.ROUTE_AMBIGUOUS);
     const policy = matches[0];
-
     if (!isPlainRecord(policy.route) || !isPlainRecord(policy.constraints)) {
       return denied(REASON.INVALID_POLICY_SET, policy.policyVersion);
     }
     if (stableJson(outputConstraints) !== stableJson(policy.constraints)) {
       return denied(REASON.OUTPUT_CONSTRAINTS_MISMATCH, policy.policyVersion);
     }
-
     const engineDecision = policyEngine({
       routeKey: policy.route,
       policies: policySet,
@@ -97,7 +85,6 @@ export function authorizeExport({
       expectedPolicyVersion: expectedVersion,
       expectedPolicyFingerprint: expectedFingerprint
     });
-
     if (!isPlainRecord(engineDecision) || typeof engineDecision.allowed !== 'boolean' ||
         typeof engineDecision.code !== 'string') {
       return denied(REASON.POLICY_ENGINE_ERROR, policy.policyVersion);
