@@ -126,12 +126,13 @@ test('P1-A6-008 denies synthetic face generation', () => {
 test('P1-A6-009 denies missing output constraints', () => {
   assert.equal(authorizeExport(request(makePolicy(), { outputConstraints: undefined })).allowed, false);
 });
-test('P1-A6-010 denies contradictory or caller-modified output constraints', () => {
-  const policy = makePolicy();
-  const contradictory = { ...policy.constraints, minWidthPx: 900, maxWidthPx: 800 };
-  const result = authorizeExport(request(policy, { outputConstraints: contradictory }));
+test('P1-A6-010 denies contradictory policy output constraints', () => {
+  const policy = makePolicy({
+    constraints: { ...CONSTRAINTS, minWidthPx: 900, maxWidthPx: 800 }
+  });
+  const result = authorizeExport(request(policy));
   assert.equal(result.allowed, false);
-  assert.equal(result.reasonCode, 'OUTPUT_CONSTRAINTS_MISMATCH');
+  assert.equal(result.reasonCode, 'POLICY_CONFLICT');
 });
 test('P1-A6-011 denies stale expected policy version', () => {
   const policy = makePolicy();
@@ -220,4 +221,11 @@ test('P1-A6-022 UI form cannot supply or override the policy engine', () => {
   const result = authorizeUiExport({ formState: state, policySet: [policy], now: NOW });
   assert.equal(result.allowed, false);
   assert.equal(result.reasonCode, 'UNKNOWN_UI_FIELD');
+});
+test('P1-A6-023 denies caller-modified output constraints', () => {
+  const policy = makePolicy();
+  const modified = { ...policy.constraints, widthPx: 900 };
+  const result = authorizeExport(request(policy, { outputConstraints: modified }));
+  assert.equal(result.allowed, false);
+  assert.equal(result.reasonCode, 'OUTPUT_CONSTRAINTS_MISMATCH');
 });
