@@ -35,6 +35,7 @@ input[type=range]{padding:0;accent-color:#2459d3}
 button{width:100%;border:0;padding:15px;border-radius:11px;font-size:16px;font-weight:700;cursor:pointer;margin-top:14px}
 .primary{background:#2459d3;color:#fff}.secondary{background:#eaf0fc;color:#234da6}
 button:disabled{opacity:.45;cursor:not-allowed}
+.action-help{margin:8px 0 0;color:#667085;font-size:13px;line-height:1.55}
 .note{color:#667085;font-size:13px;line-height:1.6}
 .requirements{margin-top:14px;padding:15px;border:1px solid #dbe4f0;border-radius:12px;background:#f8faff;line-height:1.55}
 .requirements strong{display:block;margin-bottom:7px;color:#172033}
@@ -133,6 +134,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <input type="range" id="vertical" min="-100" max="100" step="1" value="0">
 <button class="secondary" id="reset" type="button">Reset framing</button>
 <button class="primary" id="process" type="button">Create Photo</button>
+<p class="action-help" id="processHelp" role="status" aria-live="polite">Select Custom photo for general-purpose editing. Official document exports stay disabled until their exact route is verified.</p>
 </section>
 
 <section class="card">
@@ -232,6 +234,7 @@ function renderRequirements(){
  $("process").disabled = officialUseBlocked;
  $("download").disabled = officialUseBlocked || !outputReady;
  $("download").textContent = $("format").value === "image/png" ? "Download PNG Photo" : "Download JPG Photo";
+ $("processHelp").textContent = doc === "custom" ? (originalImage ? "Your photo is loaded. Create Photo is ready for general-purpose editing." : "Custom photo mode is active. Upload a photo to enable processing.") : "Create Photo is disabled in official document modes to avoid producing an edited image that may violate issuing-authority rules. Select Custom photo for general-purpose editing.";
  $("printTools").hidden = doc !== "custom";
  $("printSheetButton").disabled = doc !== "custom" || !outputReady;
  $("removeBackground").disabled = doc !== "custom" || !originalImage;
@@ -301,7 +304,7 @@ photo.addEventListener("change", () => {
   updateImageInfo();
   $("analyzeFace").disabled = false;
   $("faceStatus").textContent = "Ready. Tap Analyze face position to run the optional on-device check.";
-  $("status").textContent = "Photo loaded on this device. Adjust the framing, then create your photo.";
+  $("status").textContent = officialUseBlocked ? "Photo loaded on this device. Select Custom photo to enable general-purpose editing; official export remains disabled." : "Photo loaded on this device. Adjust the framing, then create your photo.";
   outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true; $("analyzeFace").disabled = false; $("qualityCheck").disabled = false; $("removeBackground").disabled = officialUseBlocked; $("downloadBackground").disabled = true; $("backgroundCanvas").hidden = true; $("backgroundStatus").textContent = officialUseBlocked ? "Choose Custom Photo mode to use this experimental tool." : "Photo loaded. Tap Remove background to run segmentation locally."; $("qualityStatus").textContent = "New photo loaded. Tap Run photo quality check to analyze it locally."; $("faceStatus").textContent = "New photo loaded. Run analysis again if needed."; canvas.hidden = true;
  };
  img.onerror = () => { URL.revokeObjectURL(nextUrl); alert("This image could not be opened. Please try another photo."); };
@@ -309,28 +312,63 @@ photo.addEventListener("change", () => {
 });
 
 $("process").addEventListener("click", () => {
- if (officialUseBlocked) { alert("Official photo export is disabled for this country/document selection. Choose Custom photo for general-purpose editing."); return; }
- if (!originalImage) { alert("Please upload a photo first."); return; }
+ if (officialUseBlocked) {
+  $("status").textContent = "Processing is unavailable for this official document route. Select Custom photo for general-purpose editing.";
+  $("processHelp").textContent = "Official document processing remains blocked until the exact application route and permitted operations are independently verified.";
+  return;
+ }
+ if (!originalImage || !originalImage.complete || !originalImage.naturalWidth || !originalImage.naturalHeight) {
+  $("status").textContent = "Please upload a valid photo before creating an output.";
+  return;
+ }
  const w = Number($("width").value), h = Number($("height").value);
  if (!Number.isInteger(w) || !Number.isInteger(h) || w < 100 || h < 100 || w > 3000 || h > 3000) {
-  alert("Enter whole-number dimensions between 100 and 3000 pixels."); return;
+  $("status").textContent = "Enter whole-number dimensions between 100 and 3000 pixels.";
+  return;
  }
- const backgrounds = {white:"#ffffff",lightgray:"#eeeeee",blue:"#e5efff"};
- const requiredScale = Math.max(w / originalImage.width, h / originalImage.height);
- const resolutionNote = requiredScale > 1.01 ? " Warning: this output enlarges the source image by about "+Math.round((requiredScale-1)*100)+"%; quality may look soft." : " Source pixel dimensions are sufficient for this output size before cropping.";
- canvas.width = w; canvas.height = h;
- ctx.fillStyle = backgrounds[$("background").value] || "#ffffff";
- ctx.fillRect(0,0,w,h);
- const scale = Math.max(w / originalImage.width, h / originalImage.height) * Number($("zoom").value);
- const dw = originalImage.width * scale, dh = originalImage.height * scale;
- const extraX = Math.max(0,dw-w), extraY = Math.max(0,dh-h);
- const dx = -extraX * (Number($("horizontal").value)+100)/200;
- const dy = -extraY * (Number($("vertical").value)+100)/200;
- ctx.drawImage(originalImage,dx,dy,dw,dh);
- canvas.hidden = false;
- $("status").textContent = "Photo created at " + w + " × " + h + " pixels. Review the crop before downloading." + resolutionNote;
- outputReady = true; $("download").disabled = false; $("printSheetButton").disabled = officialUseBlocked;
-});
+ const zoom = Number($("zoom").value), horizontal = Number($("horizontal").value), vertical = Number($("vertical").value);
+ if (!Number.isFinite(zoom) || zoom < 1 || zoom > 2.5 || !Number.isFinite(horizontal) || !Number.isFinite(vertical)) {
+  $("status").textContent = "Framing controls contain an invalid value. Reset framing and try again.";
+  return;
+ }
+ if (!ctx) {
+  $("status").textContent = "Photo processing is unavailable because this browser could not create a 2D canvas context.";
+  return;
+ }
+ $("process").disabled = true;
+ $("status").textContent = "Creating your photo locally…";
+ try {
+  const backgrounds = {white:"#ffffff",lightgray:"#eeeeee",blue:"#e5efff"};
+  const requiredScale = Math.max(w / originalImage.naturalWidth, h / originalImage.naturalHeight);
+  const resolutionNote = requiredScale > 1.01 ? " Warning: this output enlarges the source image by about "+Math.round((requiredScale-1)*100)+"%; quality may look soft." : " Source pixel dimensions are sufficient for this output size before cropping.";
+  canvas.width = w; canvas.height = h;
+  ctx.fillStyle = backgrounds[$("background").value] || "#ffffff";
+  ctx.fillRect(0,0,w,h);
+  const scale = Math.max(w / originalImage.naturalWidth, h / originalImage.naturalHeight) * zoom;
+  const dw = originalImage.naturalWidth * scale, dh = originalImage.naturalHeight * scale;
+  const extraX = Math.max(0,dw-w), extraY = Math.max(0,dh-h);
+  const dx = -extraX * (horizontal+100)/200;
+  const dy = -extraY * (vertical+100)/200;
+  ctx.drawImage(originalImage,dx,dy,dw,dh);
+  canvas.hidden = false;
+  outputReady = true;
+  $("download").disabled = false;
+  $("printSheetButton").disabled = false;
+  $("status").textContent = "Photo created successfully at " + w + " × " + h + " pixels. Review the crop before downloading." + resolutionNote;
+  $("processHelp").textContent = "Output is ready. Review the preview, then choose Download Photo.";
+ } catch (error) {
+  outputReady = false;
+  canvas.hidden = true;
+  $("download").disabled = true;
+  $("printSheetButton").disabled = true;
+  const detail = error && error.message ? error.message : "Unknown processing error";
+  $("status").textContent = "Photo could not be created. " + detail + " Try a smaller image or another browser.";
+  $("processHelp").textContent = "Processing failed. Your original photo has not been uploaded to PassportAI.";
+  console.error("PassportAI photo processing failed:", error);
+ } finally {
+  $("process").disabled = false;
+ }
+});;
 $("download").addEventListener("click", () => {
  if (officialUseBlocked || !outputReady || !canvas.width) return;
  canvas.toBlob(blob => {
