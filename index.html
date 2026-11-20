@@ -90,6 +90,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <rect id="detectedFaceBox" x="0" y="0" width="0" height="0" stroke="#35d39a" stroke-width="4" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/>
 </g></svg><div id="cropDragFrame" class="crop-drag-frame" hidden role="group" tabindex="0" aria-label="Crop frame. Drag to reposition the crop, or use arrow keys."></div></div>
 <p id="guideStatus" class="note">Upload a photo to view framing guides. The guides are visual aids only.</p>
+<p id="cropDragHelp" class="note" hidden>Custom Photo: drag the white crop frame to reposition your photo. Focus the frame and use arrow keys for fine adjustments (hold Shift for larger steps). The framing sliders update at the same time.</p>
 <p class="note">Use a clear, front-facing photo with even lighting. Keep your full head visible; check the crop before downloading.</p>
 <div id="imageInfo" class="image-info" aria-live="polite"><strong>Image check</strong><span>Upload a photo to see its file details and resolution guidance.</span></div>
 <div class="image-info" style="margin-top:12px">
@@ -534,6 +535,7 @@ const previewImage = byId("preview");
 const previewWrap = byId("previewWrap");
 const cropFrame = byId("cropDragFrame");
 const dragStatus = byId("guideStatus");
+const cropDragHelp = byId("cropDragHelp");
 const slider = { horizontal: byId("horizontal"), vertical: byId("vertical") };
 const numberFields = ["width", "height", "zoom", "horizontal", "vertical"];
 let activeDrag = null;
@@ -553,8 +555,10 @@ function currentCropRequest() {
 function refreshCropFrame() {
   if (!previewImage.complete || !previewImage.naturalWidth || byId("document").value !== "custom") {
     cropFrame.hidden = true;
+    cropDragHelp.hidden = true;
     return;
   }
+  cropDragHelp.hidden = false;
   const crop = calculateCropWindow(currentCropRequest());
   if (!crop.valid) {
     cropFrame.hidden = true;
