@@ -23,6 +23,19 @@ export function prepareRgbTensor(rgba, width = 112, height = 112) {
   return tensor;
 }
 
+export function normalizeFaceBox(box, imageWidth, imageHeight) {
+  const values = [box?.originX, box?.originY, box?.width, box?.height, imageWidth, imageHeight];
+  if (!values.every(Number.isFinite) || imageWidth <= 0 || imageHeight <= 0 || box.width <= 0 || box.height <= 0) {
+    throw new TypeError("Invalid pixel face box geometry.");
+  }
+  return Object.freeze({
+    originX: box.originX / imageWidth,
+    originY: box.originY / imageHeight,
+    width: box.width / imageWidth,
+    height: box.height / imageHeight
+  });
+}
+
 export function getSquareFaceCrop(imageWidth, imageHeight, box, padding = 1.35) {
   const values = [imageWidth, imageHeight, box?.originX, box?.originY, box?.width, box?.height, padding];
   if (!values.every(Number.isFinite) || imageWidth <= 0 || imageHeight <= 0 || box.width <= 0 || box.height <= 0 || padding < 1) {
@@ -70,7 +83,10 @@ export async function scoreFaceQuality({ image, box, runtimeLoader = loadOnnxRun
   if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) throw new TypeError("Upload a valid photo first.");
   const report = stage => { try { onProgress(stage); } catch {} };
   report("Preparing the face crop…");
-  const crop = getSquareFaceCrop(image.naturalWidth, image.naturalHeight, box);
+  // MediaPipe Tasks Vision returns boundingBox values in source-image pixels;
+  // the crop helper works with normalized [0, 1] coordinates.
+  const normalizedBox = normalizeFaceBox(box, image.naturalWidth, image.naturalHeight);
+  const crop = getSquareFaceCrop(image.naturalWidth, image.naturalHeight, normalizedBox);
   const canvas = document.createElement("canvas");
   canvas.width = EDFFIQA_INPUT_SIZE;
   canvas.height = EDFFIQA_INPUT_SIZE;
