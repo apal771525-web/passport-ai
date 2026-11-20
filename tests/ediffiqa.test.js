@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { prepareRgbTensor, getSquareFaceCrop, EDFFIQA_MODEL_SHA256, EDFFIQA_MODEL_BYTES } from "../src/ediffiqa.js";
+import { prepareRgbTensor, getSquareFaceCrop, normalizeFaceBox, EDFFIQA_MODEL_SHA256, EDFFIQA_MODEL_BYTES } from "../src/ediffiqa.js";
 
 test("eDifFIQA-T model metadata pins the upstream model artifact", () => {
   assert.equal(EDFFIQA_MODEL_BYTES, 6901979);
@@ -31,4 +31,21 @@ test("builds a square crop around a normalized face box", () => {
 
 test("rejects invalid face geometry", () => {
   assert.throws(() => getSquareFaceCrop(720, 1600, { originX: 0, originY: 0, width: 0, height: 0.2 }), /geometry/);
+});
+
+test("normalizes MediaPipe pixel bounding boxes for the AI crop helper", () => {
+  const normalized = normalizeFaceBox(
+    { originX: 216, originY: 320, width: 180, height: 240 },
+    720,
+    1600
+  );
+  assert.deepEqual(normalized, { originX: 0.3, originY: 0.2, width: 0.25, height: 0.15 });
+  const crop = getSquareFaceCrop(720, 1600, normalized);
+  assert.ok(crop.x >= 0 && crop.y >= 0);
+  assert.ok(crop.x + crop.width <= 720);
+  assert.ok(crop.y + crop.height <= 1600);
+});
+
+test("rejects invalid pixel face boxes before normalization", () => {
+  assert.throws(() => normalizeFaceBox({ originX: 0, originY: 0, width: 0, height: 10 }, 720, 1600), /pixel face box/);
 });
