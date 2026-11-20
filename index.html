@@ -280,18 +280,34 @@ $("reset").addEventListener("click", () => {
  $("status").textContent = "Framing reset. Select Create Photo to update your result.";
  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true;
 });
-photo.addEventListener("change", () => {
+photo.addEventListener("change", async () => {
  const file = photo.files && photo.files[0];
  if (!file) return;
  if (!["image/jpeg","image/png","image/webp"].includes(file.type)) {
   alert("Please select a JPG, PNG or WebP image."); photo.value = ""; return;
  }
- if (file.size > 15 * 1024 * 1024) {
-  alert("Please select an image smaller than 15 MB."); photo.value = ""; return;
+ if (!Number.isSafeInteger(file.size) || file.size <= 0 || file.size > 15 * 1024 * 1024) {
+  alert("The selected image must be larger than 0 bytes and no more than 15 MB."); photo.value = ""; return;
+ }
+ let signature;
+ try {
+  signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+ } catch {
+  alert("This image could not be read. Please choose another file."); photo.value = ""; return;
+ }
+ const isJpeg = signature.length >= 3 && signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff;
+ const isPng = signature.length >= 8 && signature[0] === 0x89 && signature[1] === 0x50 && signature[2] === 0x4e && signature[3] === 0x47 && signature[4] === 0x0d && signature[5] === 0x0a && signature[6] === 0x1a && signature[7] === 0x0a;
+ const isWebp = signature.length >= 12 && signature[0] === 0x52 && signature[1] === 0x49 && signature[2] === 0x46 && signature[3] === 0x46 && signature[8] === 0x57 && signature[9] === 0x45 && signature[10] === 0x42 && signature[11] === 0x50;
+ const signatureType = isJpeg ? "image/jpeg" : isPng ? "image/png" : isWebp ? "image/webp" : null;
+ if (!signatureType || signatureType !== file.type) {
+  alert("The file contents do not match a supported JPG, PNG or WebP image. Please choose a genuine image file."); photo.value = ""; return;
  }
  const nextUrl = URL.createObjectURL(file);
  const img = new Image();
  img.onload = () => {
+  if (!Number.isSafeInteger(img.naturalWidth) || !Number.isSafeInteger(img.naturalHeight) || img.naturalWidth <= 0 || img.naturalHeight <= 0 || img.naturalWidth * img.naturalHeight > 40000000) {
+   URL.revokeObjectURL(nextUrl); photo.value = ""; alert("This image has invalid or excessively large dimensions. Please choose a smaller image."); return;
+  }
   if (imageUrl) URL.revokeObjectURL(imageUrl);
   imageUrl = nextUrl; originalImage = img; originalFile = file; preview.src = imageUrl;
   $("previewWrap").hidden = false;
