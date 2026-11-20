@@ -61,8 +61,8 @@ export function calculatePhotoRenderPlan(request) {
   const drawHeight = sourceHeight * scale;
   const overflowX = Math.max(0, drawWidth - width);
   const overflowY = Math.max(0, drawHeight - height);
-  const drawX = -overflowX * (horizontal + 100) / 200;
-  const drawY = -overflowY * (vertical + 100) / 200;
+  const drawX = overflowX === 0 ? 0 : -overflowX * (horizontal + 100) / 200;
+  const drawY = overflowY === 0 ? 0 : -overflowY * (vertical + 100) / 200;
 
   return {
     valid: true,
