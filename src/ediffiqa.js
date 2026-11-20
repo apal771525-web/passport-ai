@@ -66,8 +66,10 @@ async function fetchVerifiedModel(fetchImpl) {
   return bytes;
 }
 
-export async function scoreFaceQuality({ image, box, runtimeLoader = loadOnnxRuntime, fetchImpl = fetch }) {
+export async function scoreFaceQuality({ image, box, runtimeLoader = loadOnnxRuntime, fetchImpl = fetch, onProgress = () => {} }) {
   if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) throw new TypeError("Upload a valid photo first.");
+  const report = stage => { try { onProgress(stage); } catch {} };
+  report("Preparing the face crop…");
   const crop = getSquareFaceCrop(image.naturalWidth, image.naturalHeight, box);
   const canvas = document.createElement("canvas");
   canvas.width = EDFFIQA_INPUT_SIZE;
@@ -77,16 +79,21 @@ export async function scoreFaceQuality({ image, box, runtimeLoader = loadOnnxRun
   context.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, 112, 112);
   const rgba = context.getImageData(0, 0, 112, 112).data;
   const data = prepareRgbTensor(rgba);
+  report("Loading ONNX Runtime and its WebAssembly engine…");
   const ort = await runtimeLoader();
+  report("Downloading the eDifFIQA-T model and checking its SHA-256 integrity…");
   const model = await fetchVerifiedModel(fetchImpl);
+  report("Initializing the AI inference session…");
   const session = await ort.InferenceSession.create(model, { executionProviders: ["wasm"] });
   try {
+    report("Running AI face-quality inference…");
     const inputName = session.inputNames?.[0] || "input";
     const outputName = session.outputNames?.[0] || "quality";
     const input = new ort.Tensor("float32", data, [1, 3, 112, 112]);
     const result = await session.run({ [inputName]: input });
     const raw = result[outputName]?.data?.[0];
     if (!Number.isFinite(raw)) throw new Error("The face-quality model returned an invalid score.");
+    report("AI inference completed.");
     return Object.freeze({ score: raw, crop, note: "Experimental eDifFIQA-T score. This crop is not landmark-aligned; do not interpret it as passport acceptance or identity verification." });
   } finally {
     await session.release?.();
