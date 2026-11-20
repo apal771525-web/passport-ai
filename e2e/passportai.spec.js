@@ -38,6 +38,19 @@ test('custom photo upload renders a result and enables a real file download', as
   expect(download.suggestedFilename()).toMatch(/\.(jpg|png)$/i);
 });
 
+test('runs the photo quality check locally after a valid upload', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#photo').setInputFiles({
+    name: 'quality-test.png',
+    mimeType: 'image/png',
+    buffer: tinyPng
+  });
+  await expect(page.locator('#qualityCheck')).toBeEnabled();
+  await page.locator('#qualityCheck').click();
+  await expect(page.locator('#qualityStatus')).toContainText('rough image-wide signals');
+  await expect(page.locator('#qualityStatus')).toContainText('analyzed in this browser');
+});
+
 test('rejects fake image bytes even when MIME metadata claims PNG', async ({ page }) => {
   await page.goto('/');
   page.on('dialog', dialog => dialog.accept());
