@@ -95,6 +95,8 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <strong>On-device face positioning check</strong>
 <p class="note">Only when you tap Analyze: Passport AI loads Google's MediaPipe library and face-detection model. The photo is processed in your browser and is not uploaded by this feature. MediaPipe may send usage/performance metrics to Google. This is an optional framing aid, not an identity check or government compliance test.</p>
 <button class="secondary" id="analyzeFace" type="button" disabled>Analyze face position</button>
+<button class="secondary" id="autoCenterFace" type="button" disabled>Auto-centre detected face</button>
+<p id="autoCenterHelp" class="note" role="status" aria-live="polite">Run face analysis in Custom Photo mode to enable a suggested crop. You can still adjust framing manually.</p>
 <p id="faceStatus" class="note" role="status" aria-live="polite">Upload a photo first. Face analysis starts only after you tap the button.</p>
 </div>
 <div class="image-info" style="margin-top:12px">
@@ -184,6 +186,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 import { calculatePhotoRenderPlan } from "./src/photo-engine.js";
 import { PHOTO_PRESETS, customDimensionsToPixels } from "./src/photo-presets.js";
 import { encodeJpegWithinTarget } from "./src/jpeg-export.js";
+import { suggestFaceCentering } from "./src/face-centering.js";
 const $ = id => document.getElementById(id);
 const photo = $("photo"), preview = $("preview"), canvas = $("canvas");
 const ctx = canvas.getContext("2d");
@@ -524,6 +527,8 @@ renderRequirements();
 </script>
 <script type="module">
 const faceButton = document.getElementById("analyzeFace");
+const autoCenterButton = document.getElementById("autoCenterFace");
+const autoCenterHelp = document.getElementById("autoCenterHelp");
 const faceStatus = document.getElementById("faceStatus");
 let faceDetectorPromise = null;
 let lastAnalyzedImage = null;
@@ -532,6 +537,8 @@ let visionRuntimePromise = null;
 document.getElementById("photo").addEventListener("change", () => {
  lastAnalyzedImage = null;
  lastFaceBox = null;
+ autoCenterButton.disabled = true;
+ autoCenterHelp.textContent = "Run face analysis again for a new photo.";
 });
 async function loadVisionRuntime(){
  return await createVisionRuntime();
@@ -709,6 +716,34 @@ faceButton.addEventListener("click", async () => {
  } finally {
   faceButton.disabled = false;
  }
+});
+autoCenterButton.addEventListener("click", () => {
+ const image = document.getElementById("preview");
+ if (document.getElementById("document").value !== "custom") {
+  autoCenterHelp.textContent = "Auto-centering is restricted to Custom Photo mode.";
+  return;
+ }
+ if (!image || !image.naturalWidth || lastAnalyzedImage !== image.src || !lastFaceBox) {
+  autoCenterHelp.textContent = "Analyze this photo first so a current face position is available.";
+  return;
+ }
+ const suggestion = suggestFaceCentering({
+  sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight,
+  width: Number(document.getElementById("width").value),
+  height: Number(document.getElementById("height").value),
+  zoom: Number(document.getElementById("zoom").value)
+ }, lastFaceBox);
+ if (!suggestion.valid) {
+  autoCenterHelp.textContent = "Could not calculate a safe crop suggestion. Adjust framing manually.";
+  return;
+ }
+ document.getElementById("horizontal").value = String(suggestion.horizontal);
+ document.getElementById("vertical").value = String(suggestion.vertical);
+ updateRangeLabels();
+ outputReady = false;
+ document.getElementById("download").disabled = true;
+ document.getElementById("printSheetButton").disabled = true;
+ autoCenterHelp.textContent = "Suggested crop applied. Review the preview carefully, then select Create Photo. This is not a compliance measurement.";
 });
 </script>
 </body>
