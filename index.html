@@ -387,6 +387,7 @@ $("process").addEventListener("click", () => {
    : " Source pixel dimensions are sufficient for this output size before cropping.";
   $("status").textContent = "Photo created successfully at " + w + " × " + h + " pixels. Review the crop before downloading." + resolutionNote;
   $("processHelp").textContent = "Output is ready. Review the preview, then choose Download Photo.";
+  $("downloadHelp").textContent = "Your edited photo is ready. Tap Download Photo to save it to your device.";
  } catch (error) {
   outputReady = false;
   canvas.hidden = true;
