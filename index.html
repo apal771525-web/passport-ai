@@ -503,6 +503,7 @@ downloadBackground.addEventListener("click",()=>{
   setTimeout(()=>URL.revokeObjectURL(url),1500);
  },"image/png");
 });
+import { analyzePhotoPixels } from "./src/photo-quality.js";
 const qualityButton = document.getElementById("qualityCheck");
 const qualityStatus = document.getElementById("qualityStatus");
 qualityButton.addEventListener("click", () => {
@@ -513,38 +514,26 @@ qualityButton.addEventListener("click", () => {
  try {
   const sample = document.createElement("canvas"), side = 256;
   const scale = Math.min(1, side / Math.max(image.naturalWidth, image.naturalHeight));
-  sample.width = Math.max(1, Math.round(image.naturalWidth * scale));
-  sample.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  sample.width = Math.max(3, Math.round(image.naturalWidth * scale));
+  sample.height = Math.max(3, Math.round(image.naturalHeight * scale));
   const sampleCtx = sample.getContext("2d", {willReadFrequently:true});
   sampleCtx.drawImage(image, 0, 0, sample.width, sample.height);
   const pixels = sampleCtx.getImageData(0, 0, sample.width, sample.height).data;
-  const gray = new Float32Array(sample.width * sample.height);
-  let total = 0, dark = 0, bright = 0;
-  for (let p = 0, n = 0; p < pixels.length; p += 4, n++) {
-   const y = 0.2126*pixels[p] + 0.7152*pixels[p+1] + 0.0722*pixels[p+2];
-   gray[n] = y; total += y; if (y < 25) dark++; if (y > 245) bright++;
-  }
-  const count = gray.length, average = total / count;
-  let lapTotal = 0, lapSq = 0, samples = 0;
-  for (let y = 1; y < sample.height-1; y++) for (let x = 1; x < sample.width-1; x++) {
-   const k = y*sample.width+x;
-   const lap = gray[k-1]+gray[k+1]+gray[k-sample.width]+gray[k+sample.width]-4*gray[k];
-   lapTotal += lap; lapSq += lap*lap; samples++;
-  }
-  const variance = samples ? Math.max(0,lapSq/samples-Math.pow(lapTotal/samples,2)) : 0;
+  const analysis = analyzePhotoPixels(pixels, sample.width, sample.height);
+  if (!analysis.valid) throw new Error("The image sample is too small or could not be analyzed.");
+  const metrics = analysis.metrics;
   const notes = [];
-  if (average < 75) notes.push("The sample looks quite dark overall; consider brighter, even lighting.");
-  else if (average > 205) notes.push("The sample looks very bright overall; check for washed-out areas.");
+  if (metrics.meanBrightness < 75) notes.push("The sample looks quite dark overall; consider brighter, even lighting.");
+  else if (metrics.meanBrightness > 205) notes.push("The sample looks very bright overall; check for washed-out areas.");
   else notes.push("Average brightness is within a broad middle range.");
-  const darkPct=dark/count*100, brightPct=bright/count*100;
-  if (darkPct>20) notes.push(Math.round(darkPct)+"% of sampled pixels are very dark.");
-  if (brightPct>20) notes.push(Math.round(brightPct)+"% of sampled pixels are very bright.");
-  if (variance<45) notes.push("Estimated sharpness is low; the photo may be soft, but this simple measure can be misleading.");
+  if (metrics.darkPixelPercent > 20) notes.push(Math.round(metrics.darkPixelPercent) + "% of sampled pixels are very dark.");
+  if (metrics.brightPixelPercent > 20) notes.push(Math.round(metrics.brightPixelPercent) + "% of sampled pixels are very bright.");
+  if (metrics.sharpnessVariance < 45) notes.push("Estimated sharpness is low; the photo may be soft, but this simple measure can be misleading.");
   else notes.push("The sample has visible edge detail; this does not guarantee the face itself is sharp.");
-  qualityStatus.textContent=notes.join(" ")+" These are rough image-wide signals, not face-specific measurements or government rules. Your photo was analyzed in this browser.";
+  qualityStatus.textContent = notes.join(" ") + " These are rough image-wide signals, not face-specific measurements or government rules. Your photo was analyzed in this browser.";
  } catch(error) {
-  qualityStatus.textContent="Quality check could not run in this browser. "+(error&&error.message?error.message:"");
- } finally { qualityButton.disabled=false; }
+  qualityStatus.textContent = "Quality check could not run in this browser. " + (error && error.message ? error.message : "");
+ } finally { qualityButton.disabled = false; }
 });
 faceButton.addEventListener("click", async () => {
  const image = document.getElementById("preview");
