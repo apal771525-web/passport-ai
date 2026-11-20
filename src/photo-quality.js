@@ -49,6 +49,28 @@ export function analyzePhotoPixels(data, width, height) {
   return { valid: true, metrics };
 }
 
+export function analyzePhotoRegion(data, width, height, box) {
+  const validation = validatePixelSample(data, width, height);
+  if (!validation.valid) return { valid: false, code: validation.code, metrics: null };
+  if (!box || ![box.originX, box.originY, box.width, box.height].every(Number.isFinite) ||
+      box.width <= 0 || box.height <= 0 || box.originX < 0 || box.originY < 0 ||
+      box.originX + box.width > width || box.originY + box.height > height) {
+    return { valid: false, code: "INVALID_REGION", metrics: null };
+  }
+  const left = Math.floor(box.originX), top = Math.floor(box.originY);
+  const right = Math.ceil(box.originX + box.width), bottom = Math.ceil(box.originY + box.height);
+  const cropWidth = right - left, cropHeight = bottom - top;
+  if (cropWidth < 3 || cropHeight < 3 || cropWidth * cropHeight > MAX_ANALYSIS_PIXELS) {
+    return { valid: false, code: "INVALID_REGION_SIZE", metrics: null };
+  }
+  const cropped = new Uint8ClampedArray(cropWidth * cropHeight * 4);
+  for (let y = 0; y < cropHeight; y++) {
+    const start = ((top + y) * width + left) * 4;
+    cropped.set(data.subarray(start, start + cropWidth * 4), y * cropWidth * 4);
+  }
+  return analyzePhotoPixels(cropped, cropWidth, cropHeight);
+}
+
 export function assessFaceFraming(imageWidth, imageHeight, box) {
   if (!Number.isSafeInteger(imageWidth) || !Number.isSafeInteger(imageHeight) || imageWidth <= 0 || imageHeight <= 0 || !box) {
     return { valid: false, code: "INVALID_FACE_GEOMETRY", metrics: null };
