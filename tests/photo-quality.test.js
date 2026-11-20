@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { analyzePhotoPixels, assessFaceFraming, validatePixelSample } from "../src/photo-quality.js";
+import { analyzePhotoPixels, analyzePhotoRegion, assessFaceFraming, validatePixelSample } from "../src/photo-quality.js";
 
 function rgba(width, height, fill) {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -39,6 +39,19 @@ test("detects edge detail as a higher sharpness signal than a flat sample", () =
   const edged = rgba(8, 8, [0, 0, 0]);
   for (let y = 0; y < 8; y++) for (let x = 4; x < 8; x++) edged.set([255, 255, 255, 255], (y * 8 + x) * 4);
   assert.ok(analyzePhotoPixels(edged, 8, 8).metrics.sharpnessVariance > analyzePhotoPixels(flat, 8, 8).metrics.sharpnessVariance);
+});
+
+test("analyzes sharpness and exposure only inside a validated face region", () => {
+  const data = rgba(8, 8, [80, 80, 80]);
+  for (let y = 2; y < 6; y++) {
+    for (let x = 4; x < 7; x++) data.set([255, 255, 255, 255], (y * 8 + x) * 4);
+  }
+  const result = analyzePhotoRegion(data, 8, 8, { originX: 3, originY: 1, width: 4, height: 6 });
+  assert.equal(result.valid, true);
+  assert.equal(result.metrics.sampledWidth, 4);
+  assert.equal(result.metrics.sampledHeight, 6);
+  assert.ok(result.metrics.sharpnessVariance > 0);
+  assert.equal(analyzePhotoRegion(data, 8, 8, { originX: 7, originY: 0, width: 2, height: 2 }).code, "INVALID_REGION");
 });
 
 test("rejects invalid face geometry", () => {
