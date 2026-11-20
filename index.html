@@ -147,6 +147,8 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <p id="status" class="note" role="status" aria-live="polite">Upload a photo to begin. Your image is processed locally in this browser.</p>
 <canvas id="canvas" hidden></canvas>
 <button class="primary" id="download" type="button" disabled>Download JPG Photo</button>
+<button class="secondary" id="switchToCustom" type="button" hidden>Switch to Custom Photo to enable editing and download</button>
+<p id="downloadHelp" class="action-help" role="status" aria-live="polite">Select Custom Photo for general-purpose editing and to enable the download workflow. Official document exports may remain blocked to protect unaltered originals.</p>
 <div id="printTools" hidden>
 <div class="grid">
 <div><label for="printWidth">Print width (mm)</label><input id="printWidth" type="number" min="10" max="100" value="35" inputmode="decimal"></div>
@@ -231,6 +233,8 @@ function renderRequirements(){
  const panel = $("requirements");
  const profile = requirementProfiles[country + "|" + doc];
  officialUseBlocked = doc !== "custom";
+ $("switchToCustom").hidden = !officialUseBlocked;
+ $("downloadHelp").textContent = officialUseBlocked ? "Editing and processed downloads are disabled in this official document mode. Switch to Custom Photo for general-purpose editing; use the original file for applications that require an unedited photo." : (outputReady ? "Your edited photo is ready. Tap Download Photo to save it to your device." : "Custom Photo mode is active. Upload a photo, tap Create Photo, then download the result.");
  $("removeBackground").disabled = officialUseBlocked || !originalImage;
  $("process").disabled = officialUseBlocked;
  $("download").disabled = officialUseBlocked || !outputReady;
@@ -259,6 +263,12 @@ function renderRequirements(){
 }
 $("country").addEventListener("change", renderRequirements);
 $("document").addEventListener("change", renderRequirements);
+$("switchToCustom").addEventListener("click", () => {
+ $("document").value = "custom";
+ renderRequirements();
+ $("processHelp").textContent = originalImage ? "Custom Photo is ready. Tap Create Photo to generate your editable image." : "Custom Photo is active. Upload a photo to enable Create Photo and download.";
+ $("document").focus();
+});
 function updateImageInfo(){
  const panel = $("imageInfo");
  if (!originalImage || !originalFile) { panel.innerHTML = "<strong>Image check</strong><span>Upload a photo to see its file details and resolution guidance.</span>"; return; }
@@ -424,11 +434,31 @@ const faceButton = document.getElementById("analyzeFace");
 const faceStatus = document.getElementById("faceStatus");
 let faceDetectorPromise = null;
 let lastAnalyzedImage = null;
+let visionRuntimePromise = null;
+async function loadVisionRuntime(){
+ const sources = [
+  {module:"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", wasm:"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"},
+  {module:"https://unpkg.com/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", wasm:"https://unpkg.com/@mediapipe/tasks-vision@0.10.22/wasm"},
+  {module:"https://esm.sh/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", wasm:"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"}
+ ];
+ let lastError;
+ for(const source of sources){
+  try{
+   const visionModule=await import(source.module);
+   const vision=await visionModule.FilesetResolver.forVisionTasks(source.wasm);
+   return {...visionModule,vision};
+  }catch(error){lastError=error;}
+ }
+ throw new Error("All face-analysis library sources failed. Check your connection or try another network. "+(lastError?.message||""));
+}
+function getVisionRuntime(){
+ if(!visionRuntimePromise) visionRuntimePromise=loadVisionRuntime().catch(error=>{visionRuntimePromise=null;throw error;});
+ return visionRuntimePromise;
+}
 async function getFaceDetector(){
  if (!faceDetectorPromise) {
   faceDetectorPromise = (async () => {
-   const { FilesetResolver, FaceDetector } = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs");
-   const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm");
+   const { FaceDetector, vision } = await getVisionRuntime();
    return await FaceDetector.createFromOptions(vision, {
     baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite", delegate: "CPU" },
     runningMode: "IMAGE", minDetectionConfidence: 0.5, minSuppressionThreshold: 0.3
@@ -445,8 +475,7 @@ let segmenterPromise = null;
 async function getImageSegmenter(){
  if (!segmenterPromise) {
   segmenterPromise = (async () => {
-   const {FilesetResolver, ImageSegmenter} = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs");
-   const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm");
+   const {ImageSegmenter, vision} = await getVisionRuntime();
    return await ImageSegmenter.createFromOptions(vision, {
     baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite",delegate:"CPU"},
     runningMode:"IMAGE",outputCategoryMask:true,outputConfidenceMasks:false
