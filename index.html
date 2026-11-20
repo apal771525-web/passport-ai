@@ -126,6 +126,19 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <div><label for="width">Width (pixels)</label><input type="number" id="width" value="413" min="100" max="3000" inputmode="numeric"></div>
 <div><label for="height">Height (pixels)</label><input type="number" id="height" value="531" min="100" max="3000" inputmode="numeric"></div>
 </div>
+<div class="image-info" id="advancedSizeControls">
+<strong>Advanced size, DPI and image adjustments</strong>
+<label for="sizePreset">Photo size preset</label>
+<select id="sizePreset"><option value="india-35x45">35 × 45 mm (common print format)</option><option value="square-2x2">2 × 2 inches (51 × 51 mm)</option><option value="us-2x2">US 2 × 2 inches</option><option value="canada-50x70">Canada print format 50 × 70 mm</option><option value="custom">Custom dimensions</option></select>
+<div class="grid"><div><label for="dpi">Print resolution (DPI)</label><input id="dpi" type="number" min="72" max="1200" value="300" inputmode="numeric"></div><div><label for="dimensionUnit">Custom unit</label><select id="dimensionUnit"><option value="mm">Millimetres</option><option value="cm">Centimetres</option><option value="inch">Inches</option><option value="px">Pixels</option></select></div></div>
+<div class="grid"><div><label for="customWidth">Custom width</label><input id="customWidth" type="number" min="1" max="3000" value="35" inputmode="decimal"></div><div><label for="customHeight">Custom height</label><input id="customHeight" type="number" min="1" max="4500" value="45" inputmode="decimal"></div></div>
+<button class="secondary" id="applyCustomSize" type="button">Apply custom dimensions</button>
+<p class="note" id="dpiHelp">At 300 DPI, 35 × 45 mm becomes approximately 413 × 531 pixels. Physical print size depends on printer settings.</p>
+<label for="brightness">Brightness <span class="range-row"><span></span><output id="brightnessValue">100%</output></span></label><input type="range" id="brightness" min="50" max="150" value="100">
+<label for="contrast">Contrast <span class="range-row"><span></span><output id="contrastValue">100%</output></span></label><input type="range" id="contrast" min="50" max="150" value="100">
+<label for="saturation">Saturation <span class="range-row"><span></span><output id="saturationValue">100%</output></span></label><input type="range" id="saturation" min="0" max="200" value="100">
+<p class="note">Adjustments are optional general-purpose edits. Do not use edited exports where an authority requires an original, unaltered photo.</p>
+</div>
 <label for="background">Background colour</label>
 <select id="background"><option value="white">White</option><option value="lightgray">Light gray</option><option value="blue">Light blue</option></select>
 <label for="zoom">Zoom <span class="range-row"><span></span><output id="zoomValue">1.00×</output></span></label>
@@ -168,6 +181,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <footer>© 2026 Passport AI. All Rights Reserved.</footer>
 <script type="module">
 import { calculatePhotoRenderPlan } from "./src/photo-engine.js";
+import { PHOTO_PRESETS, customDimensionsToPixels } from "./src/photo-presets.js";
 const $ = id => document.getElementById(id);
 const photo = $("photo"), preview = $("preview"), canvas = $("canvas");
 const ctx = canvas.getContext("2d");
@@ -302,6 +316,28 @@ function updateRangeLabels(){
  $("verticalValue").textContent = $("vertical").value;
 }
 ["zoom","horizontal","vertical","quality"].forEach(id => $(id).addEventListener("input", updateRangeLabels));
+function updateAdjustmentLabels(){for(const key of ["brightness","contrast","saturation"]) $(key+"Value").textContent=$(key).value+"%";}
+["brightness","contrast","saturation"].forEach(id=>$(id).addEventListener("input",updateAdjustmentLabels));
+$("sizePreset").addEventListener("change",()=>{
+ const preset=PHOTO_PRESETS[$("sizePreset").value]; if(!preset||!preset.widthMm)return;
+ const dpi=Number($("dpi").value);
+ try{const dims=customDimensionsToPixels(preset.widthMm,preset.heightMm,"mm",dpi);
+ $("width").value=String(Math.min(3000,dims.width));$("height").value=String(Math.min(3000,dims.height));
+ $("printWidth").value=String(preset.widthMm);$("printHeight").value=String(preset.heightMm);
+ $("dpiHelp").textContent="Selected "+preset.widthMm+" × "+preset.heightMm+" mm at "+dpi+" DPI ≈ "+dims.width+" × "+dims.height+" px.";
+ outputReady=false;$("download").disabled=true;$("printSheetButton").disabled=true;updateImageInfo();
+ }catch(error){$("dpiHelp").textContent=error.message;}
+});
+$("applyCustomSize").addEventListener("click",()=>{
+ try{const dims=customDimensionsToPixels(Number($("customWidth").value),Number($("customHeight").value),$("dimensionUnit").value,Number($("dpi").value));
+ if(dims.width<100||dims.height<100||dims.width>3000||dims.height>3000)throw new RangeError("Output dimensions must be between 100 and 3000 pixels.");
+ $("width").value=String(dims.width);$("height").value=String(dims.height);$("sizePreset").value="custom";
+ $("dpiHelp").textContent="Applied "+dims.width+" × "+dims.height+" pixels. Review before creating the photo.";
+ outputReady=false;$("download").disabled=true;$("printSheetButton").disabled=true;updateImageInfo();
+ }catch(error){$("dpiHelp").textContent=error.message;}
+});
+$("dpi").addEventListener("change",()=>{if($("sizePreset").value!=="custom")$("sizePreset").dispatchEvent(new Event("change"));});
+
 $("reset").addEventListener("click", () => {
  $("zoom").value = "1"; $("horizontal").value = "0"; $("vertical").value = "0";
  updateRangeLabels();
@@ -396,7 +432,9 @@ $("process").addEventListener("click", () => {
   canvas.height = h;
   ctx.fillStyle = render.plan.background;
   ctx.fillRect(0, 0, w, h);
+  ctx.filter = "brightness(" + Number($("brightness").value) + "%) contrast(" + Number($("contrast").value) + "%) saturate(" + Number($("saturation").value) + "%)";
   ctx.drawImage(originalImage, render.plan.drawX, render.plan.drawY, render.plan.drawWidth, render.plan.drawHeight);
+  ctx.filter = "none";
   canvas.hidden = false;
   outputReady = true;
   $("download").disabled = false;
@@ -460,6 +498,7 @@ $("printSheetButton").addEventListener("click", () => {
 });
 $("format").addEventListener("change", renderRequirements);
 updateRangeLabels();
+updateAdjustmentLabels();
 renderRequirements();
 </script>
 <script type="module">
