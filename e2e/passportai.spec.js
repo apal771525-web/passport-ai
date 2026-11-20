@@ -64,6 +64,7 @@ test('shows a draggable crop frame in custom mode and syncs it with framing slid
   await page.locator('#width').dispatchEvent('input');
   await expect(page.locator('#cropDragFrame')).toBeVisible();
 
+  await page.locator('#cropDragFrame').scrollIntoViewIfNeeded();
   const initial = Number(await page.locator('#horizontal').inputValue());
   const frame = await page.locator('#cropDragFrame').boundingBox();
   expect(frame).not.toBeNull();
