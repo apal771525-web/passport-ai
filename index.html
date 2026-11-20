@@ -605,7 +605,7 @@ aiFaceQualityButton.addEventListener("click", async () => {
   const result = detector.detect(image);
   const detections = result && result.detections ? result.detections : [];
   if (detections.length !== 1) throw new Error(detections.length === 0 ? "No face detected. Use a clear, front-facing photo." : "More than one face detected. Use a photo with one person.");
-  const assessment = await scoreFaceQuality({ image, box: detections[0].boundingBox });
+  const assessment = await scoreFaceQuality({ image, box: detections[0].boundingBox, onProgress: stage => { aiFaceQualityStatus.textContent = stage; } });
   aiFaceQualityStatus.textContent = "Experimental eDifFIQA-T face-quality score: " + assessment.score.toFixed(3) + ". Higher scores generally indicate better face-image quality in the model's training/evaluation setting. " + assessment.note + " The score is not a passport acceptance result.";
  } catch (error) {
   aiFaceQualityStatus.textContent = "AI face-quality model could not run. Your photo was not uploaded by this feature. " + (error && error.message ? error.message : "Unknown error.");
