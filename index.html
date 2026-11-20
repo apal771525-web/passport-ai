@@ -277,7 +277,8 @@ function updateImageInfo(){
  const bytes = originalFile.size;
  const sizeLabel = bytes >= 1024*1024 ? (bytes/(1024*1024)).toFixed(2)+" MB" : (bytes/1024).toFixed(1)+" KB";
  const ratio = (originalImage.width/originalImage.height).toFixed(3);
- panel.innerHTML = "<strong>Image details</strong><span>"+originalImage.width+" × "+originalImage.height+" px · "+sizeLabel+" · "+originalFile.type+" · aspect ratio "+ratio+"</span><br><span class='good'>Loaded successfully on this device.</span><p class='note'>Resolution guidance is based only on pixel dimensions. This prototype does not yet reliably detect blur, closed eyes, shadows, glare, facial expression or government compliance.</p>";
+ const outputWidth = Number($("width").value), outputHeight = Number($("height").value);
+ panel.innerHTML = "<strong>Image details</strong><span>Original: "+originalImage.width+" × "+originalImage.height+" px · "+sizeLabel+" · "+originalFile.type+" · aspect ratio "+ratio+"</span><br><span class='good'>Loaded successfully on this device.</span><p class='note'>Recommended custom export: "+outputWidth+" × "+outputHeight+" px. Custom mode starts with the original aspect ratio and preserves source resolution up to 3000 px on the longest side. Higher source dimensions are reduced proportionally, never enlarged automatically.</p><p class='note'>Pixel dimensions do not prove sharpness or government compliance.</p>";
 }
 function updateRangeLabels(){
  $("qualityValue").textContent = $("quality").value + "%";
@@ -322,6 +323,13 @@ photo.addEventListener("change", async () => {
   }
   if (imageUrl) URL.revokeObjectURL(imageUrl);
   imageUrl = nextUrl; originalImage = img; originalFile = file; preview.src = imageUrl;
+  if ($("document").value === "custom") {
+   const maxDimension = 3000;
+   const maxPixels = 40000000;
+   const safeScale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight), Math.sqrt(maxPixels / (img.naturalWidth * img.naturalHeight)));
+   $("width").value = String(Math.max(100, Math.round(img.naturalWidth * safeScale)));
+   $("height").value = String(Math.max(100, Math.round(img.naturalHeight * safeScale)));
+  }
   $("previewWrap").hidden = false;
   $("previewWrap").style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight;
   $("cropGuideOverlay").setAttribute("viewBox","0 0 "+img.naturalWidth+" "+img.naturalHeight);
@@ -404,15 +412,28 @@ $("process").addEventListener("click", () => {
  }
 });
 $("download").addEventListener("click", () => {
- if (officialUseBlocked || !outputReady || !canvas.width) return;
+ if (officialUseBlocked || !outputReady || !canvas.width || !canvas.height) return;
+ const format = $("format").value;
+ const extension = format === "image/png" ? "png" : "jpg";
+ $("download").disabled = true;
+ $("downloadHelp").textContent = "Preparing "+extension.toUpperCase()+" export…";
  canvas.toBlob(blob => {
-  if (!blob) { alert("Unable to create JPG. Please try again."); return; }
-  const format = $("format").value;
-  const extension = format === "image/png" ? "png" : "jpg";
+  if (!blob || blob.size === 0 || blob.type !== format) {
+   $("download").disabled = false;
+   $("downloadHelp").textContent = "Export failed: the browser did not create a valid "+extension.toUpperCase()+" file. Try PNG or another browser.";
+   return;
+  }
   const url = URL.createObjectURL(blob), link = document.createElement("a");
-  link.href = url; link.download = "passport-ai-photo." + extension; link.click();
-  setTimeout(() => URL.revokeObjectURL(url),1500);
- },$("format").value,Number($("quality").value)/100);
+  link.href = url;
+  link.download = "passport-ai-photo-" + canvas.width + "x" + canvas.height + "." + extension;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  $("downloadHelp").textContent = "Download requested: "+canvas.width+" × "+canvas.height+" px · "+(blob.size/1024).toFixed(1)+" KB · "+blob.type+". Check your phone's Downloads folder.";
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  $("download").disabled = false;
+ },format,Number($("quality").value)/100);
 });
 $("printSheetButton").addEventListener("click", () => {
  if (officialUseBlocked || !outputReady || !canvas.width) return;
