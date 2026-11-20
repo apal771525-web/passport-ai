@@ -156,6 +156,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <h2>04. Download your photo</h2>
 <label for="format">File format</label>
 <select id="format"><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select>
+<label for="targetKb">Target JPG file size (KB, optional)</label><input id="targetKb" type="number" min="1" max="20480" placeholder="e.g. 50" inputmode="numeric"><p class="note">When set, PassportAI searches JPEG quality levels to get as close as possible without exceeding the target. If the image cannot fit, it will tell you instead of claiming success.</p>
 <label for="quality">JPG quality <span class="range-row"><span></span><output id="qualityValue">95%</output></span></label>
 <input type="range" id="quality" min="60" max="100" step="1" value="95">
 <p class="note">Quality applies to JPG only. PNG is exported without JPEG compression.</p>
@@ -182,6 +183,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <script type="module">
 import { calculatePhotoRenderPlan } from "./src/photo-engine.js";
 import { PHOTO_PRESETS, customDimensionsToPixels } from "./src/photo-presets.js";
+import { encodeJpegWithinTarget } from "./src/jpeg-export.js";
 const $ = id => document.getElementById(id);
 const photo = $("photo"), preview = $("preview"), canvas = $("canvas");
 const ctx = canvas.getContext("2d");
@@ -458,18 +460,34 @@ $("process").addEventListener("click", () => {
   $("process").disabled = false;
  }
 });
-$("download").addEventListener("click", () => {
+$("download").addEventListener("click", async () => {
  if (officialUseBlocked || !outputReady || !canvas.width || !canvas.height) return;
  const format = $("format").value;
  const extension = format === "image/png" ? "png" : "jpg";
- $("download").disabled = true;
- $("downloadHelp").textContent = "Preparing "+extension.toUpperCase()+" export…";
- canvas.toBlob(blob => {
-  if (!blob || blob.size === 0 || blob.type !== format) {
-   $("download").disabled = false;
-   $("downloadHelp").textContent = "Export failed: the browser did not create a valid "+extension.toUpperCase()+" file. Try PNG or another browser.";
+ const targetValue = $("targetKb").value.trim();
+ let targetBytes = null;
+ if (format === "image/jpeg" && targetValue) {
+  const targetKb = Number(targetValue);
+  if (!Number.isFinite(targetKb) || targetKb < 1 || targetKb > 20480) {
+   $("downloadHelp").textContent = "Enter a target between 1 and 20,480 KB, or leave it blank.";
    return;
   }
+  targetBytes = Math.round(targetKb * 1024);
+ }
+ $("download").disabled = true;
+ $("downloadHelp").textContent = targetBytes ? "Optimizing JPEG to your target size…" : "Preparing "+extension.toUpperCase()+" export…";
+ try {
+  let blob, sizeNote = "";
+  if (targetBytes) {
+   const result = await encodeJpegWithinTarget(canvas, targetBytes);
+   blob = result.blob;
+   sizeNote = result.withinTarget
+    ? " Target met at about "+Math.round(result.quality*100)+"% quality."
+    : " Target could not be met even at minimum quality; reduce dimensions or choose a larger KB target.";
+  } else {
+   blob = await new Promise(resolve => canvas.toBlob(resolve, format, Number($("quality").value)/100));
+  }
+  if (!blob || blob.size === 0 || blob.type !== format) throw new Error("The browser did not create a valid "+extension.toUpperCase()+" file.");
   const url = URL.createObjectURL(blob), link = document.createElement("a");
   link.href = url;
   link.download = "passport-ai-photo-" + canvas.width + "x" + canvas.height + "." + extension;
@@ -477,10 +495,13 @@ $("download").addEventListener("click", () => {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  $("downloadHelp").textContent = "Download requested: "+canvas.width+" × "+canvas.height+" px · "+(blob.size/1024).toFixed(1)+" KB · "+blob.type+". Check your phone's Downloads folder.";
+  $("downloadHelp").textContent = "Download requested: "+canvas.width+" × "+canvas.height+" px · "+(blob.size/1024).toFixed(1)+" KB · "+blob.type+"."+sizeNote+" Check your phone's Downloads folder.";
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+ } catch (error) {
+  $("downloadHelp").textContent = "Export failed: "+(error && error.message ? error.message : "unknown error")+". Try a larger target or another format.";
+ } finally {
   $("download").disabled = false;
- },format,Number($("quality").value)/100);
+ }
 });
 $("printSheetButton").addEventListener("click", () => {
  if (officialUseBlocked || !outputReady || !canvas.width) return;
