@@ -503,7 +503,7 @@ downloadBackground.addEventListener("click",()=>{
   setTimeout(()=>URL.revokeObjectURL(url),1500);
  },"image/png");
 });
-import { analyzePhotoPixels } from "./src/photo-quality.js";
+import { analyzePhotoPixels, assessFaceFraming } from "./src/photo-quality.js";
 const qualityButton = document.getElementById("qualityCheck");
 const qualityStatus = document.getElementById("qualityStatus");
 qualityButton.addEventListener("click", () => {
@@ -559,14 +559,12 @@ faceButton.addEventListener("click", async () => {
    faceRect.setAttribute("width",box.width); faceRect.setAttribute("height",box.height);
    document.getElementById("cropGuideOverlay").hidden = false;
    document.getElementById("guideStatus").textContent = "Green outline shows the detector's approximate face box. White lines show thirds. Use these only as visual framing aids.";
-   const cx = (box.originX + box.width/2) / image.naturalWidth;
-   const cy = (box.originY + box.height/2) / image.naturalHeight;
-   const faceW = box.width / image.naturalWidth * 100;
-   const faceH = box.height / image.naturalHeight * 100;
-   const horizontal = cx < 0.42 ? "Face is left of centre; consider moving the framing slightly left." : cx > 0.58 ? "Face is right of centre; consider moving the framing slightly right." : "Face appears roughly centred horizontally.";
-   const vertical = cy < 0.35 ? "Face appears high in the frame." : cy > 0.68 ? "Face appears low in the frame." : "Face appears around the middle vertically.";
+   const framing = assessFaceFraming(image.naturalWidth, image.naturalHeight, box);
+   if (!framing.valid) throw new Error("The face detector returned invalid geometry; no framing estimate was produced.");
    const score = detections[0].categories && detections[0].categories[0] ? Math.round(detections[0].categories[0].score*100) : null;
-   faceStatus.textContent = "One face detected" + (score === null ? "" : " (model confidence " + score + "%)") + ". Face box: about " + faceW.toFixed(1) + "% of image width × " + faceH.toFixed(1) + "% of image height. " + horizontal + " " + vertical + " These are general framing hints only; they are not official size or acceptance measurements.";
+   const faceW = framing.metrics.faceWidthPercent;
+   const faceH = framing.metrics.faceHeightPercent;
+   faceStatus.textContent = "One face detected" + (score === null ? "" : " (model confidence " + score + "%)") + ". Face box: about " + faceW.toFixed(1) + "% of image width × " + faceH.toFixed(1) + "% of image height. " + framing.hints.join(" ") + " These are general framing hints only; they are not official size or acceptance measurements.";
   }
  } catch (error) {
   faceStatus.textContent = "Face analysis could not start. Check your internet connection and try again. Your photo has not been uploaded by Passport AI. Technical detail: " + (error && error.message ? error.message : "unknown error");
