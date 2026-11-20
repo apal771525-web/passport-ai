@@ -338,6 +338,7 @@ photo.addEventListener("change", async () => {
   }
   if (imageUrl) URL.revokeObjectURL(imageUrl);
   imageUrl = nextUrl; originalImage = img; originalFile = file; preview.src = imageUrl;
+  lastAnalyzedImage = null; lastFaceBox = null;
   if ($("document").value === "custom") recommendSourceDimensions(img);
   $("previewWrap").hidden = false;
   $("previewWrap").style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight;
@@ -566,7 +567,7 @@ downloadBackground.addEventListener("click",()=>{
   setTimeout(()=>URL.revokeObjectURL(url),1500);
  },"image/png");
 });
-import { analyzePhotoPixels, analyzePhotoRegion, assessFaceFraming } from "./src/photo-quality.js";
+import { analyzePhotoPixels, assessFaceFraming } from "./src/photo-quality.js";
 import { scoreFaceQuality } from "./src/ediffiqa.js";
 const qualityButton = document.getElementById("qualityCheck");
 const qualityStatus = document.getElementById("qualityStatus");
