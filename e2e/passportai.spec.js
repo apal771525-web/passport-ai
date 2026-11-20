@@ -51,6 +51,35 @@ test('custom photo upload renders a result and enables a real file download', as
   expect(download.suggestedFilename()).toMatch(/\.(jpg|png)$/i);
 });
 
+test('shows a draggable crop frame in custom mode and syncs it with framing sliders', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#document').selectOption('custom');
+  await page.locator('#photo').setInputFiles({
+    name: 'crop-editor.png',
+    mimeType: 'image/png',
+    buffer: tinyPng
+  });
+  await page.locator('#width').fill('413');
+  await page.locator('#height').fill('531');
+  await page.locator('#width').dispatchEvent('input');
+  await expect(page.locator('#cropDragFrame')).toBeVisible();
+
+  const initial = Number(await page.locator('#horizontal').inputValue());
+  const frame = await page.locator('#cropDragFrame').boundingBox();
+  expect(frame).not.toBeNull();
+  await page.mouse.move(frame.x + frame.width / 2, frame.y + frame.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(frame.x + frame.width / 2 + 18, frame.y + frame.height / 2, { steps: 3 });
+  await page.mouse.up();
+  await expect.poll(async () => Number(await page.locator('#horizontal').inputValue())).toBeGreaterThan(initial);
+
+  await page.locator('#cropDragFrame').focus();
+  const beforeKeyboard = Number(await page.locator('#horizontal').inputValue());
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(async () => Number(await page.locator('#horizontal').inputValue())).toBeGreaterThan(beforeKeyboard);
+  await expect(page.locator('#download')).toBeDisabled();
+});
+
 test('runs the photo quality check locally after a valid upload', async ({ page }) => {
   await page.goto('/');
   await page.locator('#photo').setInputFiles({
