@@ -51,6 +51,39 @@ test('runs the photo quality check locally after a valid upload', async ({ page 
   await expect(page.locator('#qualityStatus')).toContainText('analyzed in this browser');
 });
 
+test('uses validated face framing metrics in the browser UI', async ({ page }) => {
+  await page.route('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: `
+        export const FilesetResolver = { forVisionTasks: async () => ({}) };
+        export const FaceDetector = {
+          createFromOptions: async () => ({
+            detect: () => ({
+              detections: [{
+                boundingBox: { originX: 0.2, originY: 0.1, width: 0.5, height: 0.5 },
+                categories: [{ score: 0.91 }]
+              }]
+            })
+          })
+        };
+      `
+    })
+  );
+  await page.goto('/');
+  await page.locator('#photo').setInputFiles({
+    name: 'face-test.png',
+    mimeType: 'image/png',
+    buffer: tinyPng
+  });
+  await page.locator('#analyzeFace').click();
+  await expect(page.locator('#faceStatus')).toContainText('One face detected');
+  await expect(page.locator('#faceStatus')).toContainText('Face appears roughly centred horizontally.');
+  await expect(page.locator('#faceStatus')).toContainText('Face appears around the middle vertically.');
+  await expect(page.locator('#detectedFaceBox')).toHaveAttribute('width', '0.5');
+});
+
 test('rejects fake image bytes even when MIME metadata claims PNG', async ({ page }) => {
   await page.goto('/');
   page.on('dialog', dialog => dialog.accept());
