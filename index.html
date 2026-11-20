@@ -474,20 +474,7 @@ document.getElementById("photo").addEventListener("change", () => {
  lastFaceBox = null;
 });
 async function loadVisionRuntime(){
- const sources = [
-  {module:"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", wasm:"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"},
-  {module:"https://unpkg.com/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", wasm:"https://unpkg.com/@mediapipe/tasks-vision@0.10.22/wasm"},
-  {module:"https://esm.sh/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", wasm:"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"}
- ];
- let lastError;
- for(const source of sources){
-  try{
-   const visionModule=await import(source.module);
-   const vision=await visionModule.FilesetResolver.forVisionTasks(source.wasm);
-   return {...visionModule,vision};
-  }catch(error){lastError=error;}
- }
- throw new Error("All face-analysis library sources failed. Check your connection or try another network. "+(lastError?.message||""));
+ return await createVisionRuntime();
 }
 function getVisionRuntime(){
  if(!visionRuntimePromise) visionRuntimePromise=loadVisionRuntime().catch(error=>{visionRuntimePromise=null;throw error;});
@@ -571,6 +558,7 @@ downloadBackground.addEventListener("click",()=>{
  },"image/png");
 });
 import { analyzePhotoPixels, assessFaceFraming } from "./src/photo-quality.js";
+import { createVisionRuntime } from "./src/vision-runtime.js";
 import { scoreFaceQuality } from "./src/ediffiqa.js";
 const qualityButton = document.getElementById("qualityCheck");
 const qualityStatus = document.getElementById("qualityStatus");
