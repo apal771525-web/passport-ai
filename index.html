@@ -162,7 +162,8 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <p class="note">Privacy: this prototype processes the selected image locally in your browser; it does not send it to a server. It is a photo-sizing tool, not an AI background remover or official compliance checker. Requirements differ by document and country. Do not assume this output will be accepted; verify the latest official instructions before applying.</p>
 </main>
 <footer>© 2026 Passport AI. All Rights Reserved.</footer>
-<script>
+<script type="module">
+import { calculatePhotoRenderPlan } from "./src/photo-engine.js";
 const $ = id => document.getElementById(id);
 const photo = $("photo"), preview = $("preview"), canvas = $("canvas");
 const ctx = canvas.getContext("2d");
@@ -322,34 +323,27 @@ $("process").addEventListener("click", () => {
   return;
  }
  const w = Number($("width").value), h = Number($("height").value);
- if (!Number.isInteger(w) || !Number.isInteger(h) || w < 100 || h < 100 || w > 3000 || h > 3000) {
-  $("status").textContent = "Enter whole-number dimensions between 100 and 3000 pixels.";
+ const render = calculatePhotoRenderPlan({
+  sourceWidth: originalImage.naturalWidth,
+  sourceHeight: originalImage.naturalHeight,
+  width: w,
+  height: h,
+  zoom: Number($("zoom").value),
+  horizontal: Number($("horizontal").value),
+  vertical: Number($("vertical").value),
+  background: $("background").value,
+ });
+ if (!render.valid) {
+  $("status").textContent = render.message;
   return;
  }
- const zoom = Number($("zoom").value), horizontal = Number($("horizontal").value), vertical = Number($("vertical").value);
- if (!Number.isFinite(zoom) || zoom < 1 || zoom > 2.5 || !Number.isFinite(horizontal) || !Number.isFinite(vertical)) {
-  $("status").textContent = "Framing controls contain an invalid value. Reset framing and try again.";
-  return;
- }
- if (!ctx) {
-  $("status").textContent = "Photo processing is unavailable because this browser could not create a 2D canvas context.";
-  return;
- }
- $("process").disabled = true;
- $("status").textContent = "Creating your photo locally…";
- try {
-  const backgrounds = {white:"#ffffff",lightgray:"#eeeeee",blue:"#e5efff"};
+
   const requiredScale = Math.max(w / originalImage.naturalWidth, h / originalImage.naturalHeight);
-  const resolutionNote = requiredScale > 1.01 ? " Warning: this output enlarges the source image by about "+Math.round((requiredScale-1)*100)+"%; quality may look soft." : " Source pixel dimensions are sufficient for this output size before cropping.";
+  const resolutionNote = render.plan.enlargesSource ? " Warning: this output enlarges the source image by about "+render.plan.enlargementPercent+"%; quality may look soft." : " Source pixel dimensions are sufficient for this output size before cropping.";
   canvas.width = w; canvas.height = h;
   ctx.fillStyle = backgrounds[$("background").value] || "#ffffff";
   ctx.fillRect(0,0,w,h);
-  const scale = Math.max(w / originalImage.naturalWidth, h / originalImage.naturalHeight) * zoom;
-  const dw = originalImage.naturalWidth * scale, dh = originalImage.naturalHeight * scale;
-  const extraX = Math.max(0,dw-w), extraY = Math.max(0,dh-h);
-  const dx = -extraX * (horizontal+100)/200;
-  const dy = -extraY * (vertical+100)/200;
-  ctx.drawImage(originalImage,dx,dy,dw,dh);
+  ctx.drawImage(originalImage,render.plan.drawX,render.plan.drawY,render.plan.drawWidth,render.plan.drawHeight);
   canvas.hidden = false;
   outputReady = true;
   $("download").disabled = false;
