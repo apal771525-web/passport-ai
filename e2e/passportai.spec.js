@@ -64,6 +64,18 @@ test('runs the photo quality check locally after a valid upload', async ({ page 
   await expect(page.locator('#qualityStatus')).toContainText('analyzed in this browser');
 });
 
+test('shows the experimental AI face-quality model only after a valid photo is loaded', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#aiFaceQuality')).toBeDisabled();
+  await expect(page.locator('#aiFaceQualityStatus')).toContainText('eDifFIQA-T');
+  await page.locator('#photo').setInputFiles({
+    name: 'ai-quality-test.png',
+    mimeType: 'image/png',
+    buffer: tinyPng
+  });
+  await expect(page.locator('#aiFaceQuality')).toBeEnabled();
+});
+
 test('uses validated face framing metrics in the browser UI', async ({ page }) => {
   await page.route('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs', route =>
     route.fulfill({
