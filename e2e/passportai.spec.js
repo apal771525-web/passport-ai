@@ -61,7 +61,7 @@ test('runs the photo quality check locally after a valid upload', async ({ page 
   await expect(page.locator('#qualityCheck')).toBeEnabled();
   await page.locator('#qualityCheck').click();
   await expect(page.locator('#qualityStatus')).toContainText('rough image-wide signals');
-  await expect(page.locator('#qualityStatus')).toContainText('analyzed in this browser');
+  await expect(page.locator('#qualityStatus')).toContainText('Analysis ran in this browser.');
 });
 
 test('shows the experimental AI face-quality model only after a valid photo is loaded', async ({ page }) => {
