@@ -271,6 +271,21 @@ $("switchToCustom").addEventListener("click", () => {
  $("processHelp").textContent = originalImage ? "Custom Photo is ready. Tap Create Photo to generate your editable image." : "Custom Photo is active. Upload a photo to enable Create Photo and download.";
  $("document").focus();
 });
+function recommendSourceDimensions(image){
+ const maxDimension = 3000;
+ const maxPixels = 40000000;
+ const safeScale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight), Math.sqrt(maxPixels / (image.naturalWidth * image.naturalHeight)));
+ $("width").value = String(Math.max(100, Math.round(image.naturalWidth * safeScale)));
+ $("height").value = String(Math.max(100, Math.round(image.naturalHeight * safeScale)));
+}
+$("document").addEventListener("change", () => {
+ if ($("document").value === "custom" && originalImage) {
+  recommendSourceDimensions(originalImage);
+  updateImageInfo();
+  $("status").textContent = "Custom Photo selected. Original aspect ratio and source resolution are now selected for export.";
+  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true;
+ }
+});
 function updateImageInfo(){
  const panel = $("imageInfo");
  if (!originalImage || !originalFile) { panel.innerHTML = "<strong>Image check</strong><span>Upload a photo to see its file details and resolution guidance.</span>"; return; }
@@ -323,13 +338,7 @@ photo.addEventListener("change", async () => {
   }
   if (imageUrl) URL.revokeObjectURL(imageUrl);
   imageUrl = nextUrl; originalImage = img; originalFile = file; preview.src = imageUrl;
-  if ($("document").value === "custom") {
-   const maxDimension = 3000;
-   const maxPixels = 40000000;
-   const safeScale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight), Math.sqrt(maxPixels / (img.naturalWidth * img.naturalHeight)));
-   $("width").value = String(Math.max(100, Math.round(img.naturalWidth * safeScale)));
-   $("height").value = String(Math.max(100, Math.round(img.naturalHeight * safeScale)));
-  }
+  if ($("document").value === "custom") recommendSourceDimensions(img);
   $("previewWrap").hidden = false;
   $("previewWrap").style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight;
   $("cropGuideOverlay").setAttribute("viewBox","0 0 "+img.naturalWidth+" "+img.naturalHeight);
