@@ -322,32 +322,43 @@ $("process").addEventListener("click", () => {
   $("status").textContent = "Please upload a valid photo before creating an output.";
   return;
  }
- const w = Number($("width").value), h = Number($("height").value);
- const render = calculatePhotoRenderPlan({
-  sourceWidth: originalImage.naturalWidth,
-  sourceHeight: originalImage.naturalHeight,
-  width: w,
-  height: h,
-  zoom: Number($("zoom").value),
-  horizontal: Number($("horizontal").value),
-  vertical: Number($("vertical").value),
-  background: $("background").value,
- });
- if (!render.valid) {
-  $("status").textContent = render.message;
+ if (!ctx) {
+  $("status").textContent = "Photo processing is unavailable because this browser could not create a 2D canvas context.";
   return;
  }
-
-  const requiredScale = Math.max(w / originalImage.naturalWidth, h / originalImage.naturalHeight);
-  const resolutionNote = render.plan.enlargesSource ? " Warning: this output enlarges the source image by about "+render.plan.enlargementPercent+"%; quality may look soft." : " Source pixel dimensions are sufficient for this output size before cropping.";
-  canvas.width = w; canvas.height = h;
-  ctx.fillStyle = backgrounds[$("background").value] || "#ffffff";
-  ctx.fillRect(0,0,w,h);
-  ctx.drawImage(originalImage,render.plan.drawX,render.plan.drawY,render.plan.drawWidth,render.plan.drawHeight);
+ $("process").disabled = true;
+ $("status").textContent = "Creating your photo locally…";
+ try {
+  const w = Number($("width").value), h = Number($("height").value);
+  const render = calculatePhotoRenderPlan({
+   sourceWidth: originalImage.naturalWidth,
+   sourceHeight: originalImage.naturalHeight,
+   width: w,
+   height: h,
+   zoom: Number($("zoom").value),
+   horizontal: Number($("horizontal").value),
+   vertical: Number($("vertical").value),
+   background: $("background").value,
+  });
+  if (!render.valid) {
+   $("status").textContent = render.message;
+   outputReady = false;
+   $("download").disabled = true;
+   $("printSheetButton").disabled = true;
+   return;
+  }
+  canvas.width = w;
+  canvas.height = h;
+  ctx.fillStyle = render.plan.background;
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(originalImage, render.plan.drawX, render.plan.drawY, render.plan.drawWidth, render.plan.drawHeight);
   canvas.hidden = false;
   outputReady = true;
   $("download").disabled = false;
   $("printSheetButton").disabled = false;
+  const resolutionNote = render.plan.enlargesSource
+   ? " Warning: this output enlarges the source image by about " + render.plan.enlargementPercent + "%; quality may look soft."
+   : " Source pixel dimensions are sufficient for this output size before cropping.";
   $("status").textContent = "Photo created successfully at " + w + " × " + h + " pixels. Review the crop before downloading." + resolutionNote;
   $("processHelp").textContent = "Output is ready. Review the preview, then choose Download Photo.";
  } catch (error) {
@@ -362,7 +373,7 @@ $("process").addEventListener("click", () => {
  } finally {
   $("process").disabled = false;
  }
-});;
+});
 $("download").addEventListener("click", () => {
  if (officialUseBlocked || !outputReady || !canvas.width) return;
  canvas.toBlob(blob => {
