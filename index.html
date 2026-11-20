@@ -113,6 +113,8 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <p class="note">Checks brightness, very dark/bright areas and estimated sharpness on a small in-browser sample. Results are approximate and are not an official photo-quality or acceptance check.</p>
 <button class="secondary" id="qualityCheck" type="button" disabled>Run photo quality check</button>
 <p id="qualityStatus" class="note" role="status" aria-live="polite">Upload a photo first. This check runs only when you tap the button.</p>
+<button class="secondary" id="aiFaceQuality" type="button" disabled>Run AI face quality model</button>
+<p id="aiFaceQualityStatus" class="note" role="status" aria-live="polite">Upload a photo first. eDifFIQA-T model runs only when requested and downloads its verified model file from the upstream release.</p>
 </div>
 
 
@@ -332,7 +334,7 @@ photo.addEventListener("change", async () => {
   $("analyzeFace").disabled = false;
   $("faceStatus").textContent = "Ready. Tap Analyze face position to run the optional on-device check.";
   $("status").textContent = officialUseBlocked ? "Photo loaded on this device. Select Custom photo to enable general-purpose editing; official export remains disabled." : "Photo loaded on this device. Adjust the framing, then create your photo.";
-  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true; $("analyzeFace").disabled = false; $("qualityCheck").disabled = false; $("removeBackground").disabled = officialUseBlocked; $("downloadBackground").disabled = true; $("backgroundCanvas").hidden = true; $("backgroundStatus").textContent = officialUseBlocked ? "Choose Custom Photo mode to use this experimental tool." : "Photo loaded. Tap Remove background to run segmentation locally."; $("qualityStatus").textContent = "New photo loaded. Tap Run photo quality check to analyze it locally."; $("faceStatus").textContent = "New photo loaded. Run analysis again if needed."; canvas.hidden = true;
+  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true; $("analyzeFace").disabled = false; $("qualityCheck").disabled = false; $("aiFaceQuality").disabled = false; $("removeBackground").disabled = officialUseBlocked; $("downloadBackground").disabled = true; $("backgroundCanvas").hidden = true; $("backgroundStatus").textContent = officialUseBlocked ? "Choose Custom Photo mode to use this experimental tool." : "Photo loaded. Tap Remove background to run segmentation locally."; $("qualityStatus").textContent = "New photo loaded. Tap Run photo quality check to analyze it locally."; $("faceStatus").textContent = "New photo loaded. Run analysis again if needed."; canvas.hidden = true;
  };
  img.onerror = () => { URL.revokeObjectURL(nextUrl); alert("This image could not be opened. Please try another photo."); };
  img.src = nextUrl;
@@ -534,6 +536,7 @@ downloadBackground.addEventListener("click",()=>{
  },"image/png");
 });
 import { analyzePhotoPixels, assessFaceFraming } from "./src/photo-quality.js";
+import { scoreFaceQuality } from "./src/ediffiqa.js";
 const qualityButton = document.getElementById("qualityCheck");
 const qualityStatus = document.getElementById("qualityStatus");
 qualityButton.addEventListener("click", () => {
@@ -564,6 +567,24 @@ qualityButton.addEventListener("click", () => {
  } catch(error) {
   qualityStatus.textContent = "Quality check could not run in this browser. " + (error && error.message ? error.message : "");
  } finally { qualityButton.disabled = false; }
+});
+const aiFaceQualityButton = document.getElementById("aiFaceQuality");
+const aiFaceQualityStatus = document.getElementById("aiFaceQualityStatus");
+aiFaceQualityButton.addEventListener("click", async () => {
+ const image = document.getElementById("preview");
+ if (!image || !image.complete || !image.naturalWidth) { aiFaceQualityStatus.textContent = "Upload a photo first."; return; }
+ aiFaceQualityButton.disabled = true;
+ aiFaceQualityStatus.textContent = "Detecting one face, loading eDifFIQA-T and verifying the model file. First run may take time and use several megabytes of data…";
+ try {
+  const detector = await getFaceDetector();
+  const result = detector.detect(image);
+  const detections = result && result.detections ? result.detections : [];
+  if (detections.length !== 1) throw new Error(detections.length === 0 ? "No face detected. Use a clear, front-facing photo." : "More than one face detected. Use a photo with one person.");
+  const assessment = await scoreFaceQuality({ image, box: detections[0].boundingBox });
+  aiFaceQualityStatus.textContent = "Experimental eDifFIQA-T face-quality score: " + assessment.score.toFixed(3) + ". Higher scores generally indicate better face-image quality in the model's training/evaluation setting. " + assessment.note + " The score is not a passport acceptance result.";
+ } catch (error) {
+  aiFaceQualityStatus.textContent = "AI face-quality model could not run. Your photo was not uploaded by this feature. " + (error && error.message ? error.message : "Unknown error.");
+ } finally { aiFaceQualityButton.disabled = false; }
 });
 faceButton.addEventListener("click", async () => {
  const image = document.getElementById("preview");
