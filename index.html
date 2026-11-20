@@ -467,6 +467,7 @@ const faceButton = document.getElementById("analyzeFace");
 const faceStatus = document.getElementById("faceStatus");
 let faceDetectorPromise = null;
 let lastAnalyzedImage = null;
+let lastFaceBox = null;
 let visionRuntimePromise = null;
 async function loadVisionRuntime(){
  const sources = [
@@ -565,7 +566,7 @@ downloadBackground.addEventListener("click",()=>{
   setTimeout(()=>URL.revokeObjectURL(url),1500);
  },"image/png");
 });
-import { analyzePhotoPixels, assessFaceFraming } from "./src/photo-quality.js";
+import { analyzePhotoPixels, analyzePhotoRegion, assessFaceFraming } from "./src/photo-quality.js";
 import { scoreFaceQuality } from "./src/ediffiqa.js";
 const qualityButton = document.getElementById("qualityCheck");
 const qualityStatus = document.getElementById("qualityStatus");
@@ -576,11 +577,13 @@ qualityButton.addEventListener("click", () => {
  qualityStatus.textContent = "Checking a small image sample locally…";
  try {
   const sample = document.createElement("canvas"), side = 256;
-  const scale = Math.min(1, side / Math.max(image.naturalWidth, image.naturalHeight));
-  sample.width = Math.max(3, Math.round(image.naturalWidth * scale));
-  sample.height = Math.max(3, Math.round(image.naturalHeight * scale));
+  const hasCurrentFace = lastAnalyzedImage === image.src && lastFaceBox;
+  const sourceBox = hasCurrentFace ? lastFaceBox : { originX: 0, originY: 0, width: image.naturalWidth, height: image.naturalHeight };
+  const scale = Math.min(1, side / Math.max(sourceBox.width, sourceBox.height));
+  sample.width = Math.max(3, Math.round(sourceBox.width * scale));
+  sample.height = Math.max(3, Math.round(sourceBox.height * scale));
   const sampleCtx = sample.getContext("2d", {willReadFrequently:true});
-  sampleCtx.drawImage(image, 0, 0, sample.width, sample.height);
+  sampleCtx.drawImage(image, sourceBox.originX, sourceBox.originY, sourceBox.width, sourceBox.height, 0, 0, sample.width, sample.height);
   const pixels = sampleCtx.getImageData(0, 0, sample.width, sample.height).data;
   const analysis = analyzePhotoPixels(pixels, sample.width, sample.height);
   if (!analysis.valid) throw new Error("The image sample is too small or could not be analyzed.");
@@ -593,7 +596,7 @@ qualityButton.addEventListener("click", () => {
   if (metrics.brightPixelPercent > 20) notes.push(Math.round(metrics.brightPixelPercent) + "% of sampled pixels are very bright.");
   if (metrics.sharpnessVariance < 45) notes.push("Estimated sharpness is low; the photo may be soft, but this simple measure can be misleading.");
   else notes.push("The sample has visible edge detail; this does not guarantee the face itself is sharp.");
-  qualityStatus.textContent = notes.join(" ") + " These are rough image-wide signals, not face-specific measurements or government rules. Your photo was analyzed in this browser.";
+  qualityStatus.textContent = notes.join(" ") + (hasCurrentFace ? " Sharpness and exposure signals were sampled inside the detected face box." : " These are rough image-wide signals because face detection has not been run for this photo.") + " This is an estimate, not a passport acceptance check. Analysis ran in this browser.";
  } catch(error) {
   qualityStatus.textContent = "Quality check could not run in this browser. " + (error && error.message ? error.message : "");
  } finally { qualityButton.disabled = false; }
@@ -626,6 +629,7 @@ faceButton.addEventListener("click", async () => {
   const result = detector.detect(image);
   const detections = result && result.detections ? result.detections : [];
   lastAnalyzedImage = image.src;
+  lastFaceBox = null;
   if (detections.length === 0) {
    document.getElementById("detectedFaceBox").setAttribute("width","0");
    document.getElementById("detectedFaceBox").setAttribute("height","0");
@@ -635,6 +639,7 @@ faceButton.addEventListener("click", async () => {
    faceStatus.textContent = detections.length + " faces detected. For a single-person document photo, retake with only the applicant in frame. Detection is not an identity or compliance check.";
   } else {
    const box = detections[0].boundingBox;
+   lastFaceBox = box;
    const faceRect = document.getElementById("detectedFaceBox");
    faceRect.setAttribute("x",box.originX); faceRect.setAttribute("y",box.originY);
    faceRect.setAttribute("width",box.width); faceRect.setAttribute("height",box.height);
