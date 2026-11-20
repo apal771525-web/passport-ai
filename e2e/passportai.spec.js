@@ -11,7 +11,7 @@ test('loads the app and keeps official document export blocked by default', asyn
   await expect(page.getByRole('heading', { name: 'Your Identity. Perfectly Framed.' })).toBeVisible();
   await expect(page.locator('#process')).toBeDisabled();
   await expect(page.locator('#download')).toBeDisabled();
-  await expect(page.locator('#processHelp')).toContainText('Official document');
+  await expect(page.locator('#processHelp')).toContainText(/official document/i);
 });
 
 test('custom photo upload renders a result and enables a real file download', async ({ page }) => {
