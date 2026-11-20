@@ -338,7 +338,6 @@ photo.addEventListener("change", async () => {
   }
   if (imageUrl) URL.revokeObjectURL(imageUrl);
   imageUrl = nextUrl; originalImage = img; originalFile = file; preview.src = imageUrl;
-  lastAnalyzedImage = null; lastFaceBox = null;
   if ($("document").value === "custom") recommendSourceDimensions(img);
   $("previewWrap").hidden = false;
   $("previewWrap").style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight;
@@ -470,6 +469,10 @@ let faceDetectorPromise = null;
 let lastAnalyzedImage = null;
 let lastFaceBox = null;
 let visionRuntimePromise = null;
+document.getElementById("photo").addEventListener("change", () => {
+ lastAnalyzedImage = null;
+ lastFaceBox = null;
+});
 async function loadVisionRuntime(){
  const sources = [
   {module:"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", wasm:"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"},
