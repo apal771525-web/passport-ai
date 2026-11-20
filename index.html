@@ -27,6 +27,7 @@ input,select{width:100%;padding:13px;border:1px solid #dce2eb;border-radius:10px
 .preview-wrap .preview{display:block;width:100%;max-height:none;height:auto;margin:0;object-fit:contain}
 .crop-guide-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .crop-guide-overlay[hidden]{display:none}
+.crop-drag-frame{position:absolute;z-index:2;border:2px solid #fff;outline:1px solid #2459d3;box-shadow:0 0 0 9999px rgba(8,20,40,.24);background:transparent;touch-action:none;cursor:grab;min-width:24px;min-height:24px;user-select:none;-webkit-user-select:none}.crop-drag-frame:active{cursor:grabbing}.crop-drag-frame:focus-visible{outline:3px solid #ffbf47;outline-offset:3px}.crop-drag-frame[hidden]{display:none}
 
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .range-row{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px}
@@ -87,7 +88,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <g stroke="#ffffff" stroke-width="3" stroke-opacity=".9" fill="none">
 <path id="cropGridLines" d="" vector-effect="non-scaling-stroke"/>
 <rect id="detectedFaceBox" x="0" y="0" width="0" height="0" stroke="#35d39a" stroke-width="4" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/>
-</g></svg></div>
+</g></svg><div id="cropDragFrame" class="crop-drag-frame" hidden role="group" tabindex="0" aria-label="Crop frame. Drag to reposition the crop, or use arrow keys."></div></div>
 <p id="guideStatus" class="note">Upload a photo to view framing guides. The guides are visual aids only.</p>
 <p class="note">Use a clear, front-facing photo with even lighting. Keep your full head visible; check the crop before downloading.</p>
 <div id="imageInfo" class="image-info" aria-live="polite"><strong>Image check</strong><span>Upload a photo to see its file details and resolution guidance.</span></div>
@@ -524,6 +525,106 @@ $("format").addEventListener("change", renderRequirements);
 updateRangeLabels();
 updateAdjustmentLabels();
 renderRequirements();
+</script>
+<script type="module">
+import { calculateCropWindow, moveCropWindow } from "./src/crop-drag.js";
+
+const byId = id => document.getElementById(id);
+const previewImage = byId("preview");
+const previewWrap = byId("previewWrap");
+const cropFrame = byId("cropDragFrame");
+const dragStatus = byId("guideStatus");
+const slider = { horizontal: byId("horizontal"), vertical: byId("vertical") };
+const numberFields = ["width", "height", "zoom", "horizontal", "vertical"];
+let activeDrag = null;
+
+function currentCropRequest() {
+  return {
+    sourceWidth: previewImage.naturalWidth,
+    sourceHeight: previewImage.naturalHeight,
+    width: Number(byId("width").value),
+    height: Number(byId("height").value),
+    zoom: Number(byId("zoom").value),
+    horizontal: Number(slider.horizontal.value),
+    vertical: Number(slider.vertical.value)
+  };
+}
+
+function refreshCropFrame() {
+  if (!previewImage.complete || !previewImage.naturalWidth || byId("document").value !== "custom") {
+    cropFrame.hidden = true;
+    return;
+  }
+  const crop = calculateCropWindow(currentCropRequest());
+  if (!crop.valid) {
+    cropFrame.hidden = true;
+    dragStatus.textContent = "Crop frame unavailable for these dimensions. Check the size and zoom values.";
+    return;
+  }
+  cropFrame.style.left = crop.leftPercent + "%";
+  cropFrame.style.top = crop.topPercent + "%";
+  cropFrame.style.width = crop.widthPercent + "%";
+  cropFrame.style.height = crop.heightPercent + "%";
+  cropFrame.hidden = false;
+}
+
+function applyDragDelta(deltaX, deltaY, initialRequest, rect) {
+  const next = moveCropWindow(initialRequest, deltaX, deltaY, rect.width, rect.height);
+  if (!next.valid) return;
+  slider.horizontal.value = String(Math.round(next.horizontal));
+  slider.vertical.value = String(Math.round(next.vertical));
+  slider.horizontal.dispatchEvent(new Event("input", { bubbles: true }));
+  slider.vertical.dispatchEvent(new Event("input", { bubbles: true }));
+  byId("download").disabled = true;
+  byId("printSheetButton").disabled = true;
+  refreshCropFrame();
+}
+
+cropFrame.addEventListener("pointerdown", event => {
+  if (byId("document").value !== "custom" || cropFrame.hidden || event.button !== 0) return;
+  const rect = previewWrap.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  activeDrag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, rect, request: currentCropRequest() };
+  cropFrame.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+cropFrame.addEventListener("pointermove", event => {
+  if (!activeDrag || event.pointerId !== activeDrag.pointerId) return;
+  applyDragDelta(event.clientX - activeDrag.startX, event.clientY - activeDrag.startY, activeDrag.request, activeDrag.rect);
+});
+function finishDrag(event) {
+  if (!activeDrag || event.pointerId !== activeDrag.pointerId) return;
+  activeDrag = null;
+  byId("status").textContent = "Crop position updated. Tap Create Photo to render the new framing.";
+  dragStatus.textContent = "Crop frame moved. Drag inside the frame to reposition it; use the sliders for fine adjustments.";
+}
+cropFrame.addEventListener("pointerup", finishDrag);
+cropFrame.addEventListener("pointercancel", finishDrag);
+cropFrame.addEventListener("keydown", event => {
+  const step = event.shiftKey ? 10 : 2;
+  const next = { horizontal: Number(slider.horizontal.value), vertical: Number(slider.vertical.value) };
+  if (event.key === "ArrowLeft") next.horizontal -= step;
+  else if (event.key === "ArrowRight") next.horizontal += step;
+  else if (event.key === "ArrowUp") next.vertical -= step;
+  else if (event.key === "ArrowDown") next.vertical += step;
+  else return;
+  event.preventDefault();
+  slider.horizontal.value = String(Math.max(-100, Math.min(100, next.horizontal)));
+  slider.vertical.value = String(Math.max(-100, Math.min(100, next.vertical)));
+  slider.horizontal.dispatchEvent(new Event("input", { bubbles: true }));
+  slider.vertical.dispatchEvent(new Event("input", { bubbles: true }));
+  byId("download").disabled = true;
+  byId("printSheetButton").disabled = true;
+  refreshCropFrame();
+  byId("status").textContent = "Crop position updated. Tap Create Photo to render the new framing.";
+});
+
+numberFields.forEach(id => byId(id).addEventListener("input", refreshCropFrame));
+byId("document").addEventListener("change", refreshCropFrame);
+byId("reset").addEventListener("click", refreshCropFrame);
+previewImage.addEventListener("load", refreshCropFrame);
+window.addEventListener("resize", refreshCropFrame);
+refreshCropFrame();
 </script>
 <script type="module">
 const faceButton = document.getElementById("analyzeFace");
