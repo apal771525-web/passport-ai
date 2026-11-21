@@ -13,6 +13,8 @@ function rgba(width, height, fill) {
 test("validates bounded RGBA samples", () => {
   assert.equal(validatePixelSample(rgba(4, 4, [120, 120, 120]), 4, 4).valid, true);
   assert.equal(validatePixelSample(null, 4, 4).code, "INVALID_SAMPLE");
+  assert.equal(validatePixelSample(new Array(64).fill(128), 4, 4).code, "INVALID_SAMPLE");
+  assert.equal(validatePixelSample(new Float32Array(64), 4, 4).code, "INVALID_SAMPLE");
   assert.equal(validatePixelSample(new Uint8Array(4), 4, 4).code, "INVALID_SAMPLE_SIZE");
   assert.equal(validatePixelSample(rgba(257, 257, [0, 0, 0]), 257, 257).code, "INVALID_SAMPLE_SIZE");
 });
