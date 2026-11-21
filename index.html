@@ -287,7 +287,13 @@ function renderRequirements(){
  panel.innerHTML = "<strong>" + profile.title + "</strong><ul>" + profile.bullets.map(x => "<li>" + x + "</li>").join("") + "</ul><p class='policy-warning'>" + profile.warning + "</p><p class='note'>Source: <a href='" + profile.source + "' target='_blank' rel='noopener noreferrer'>" + profile.sourceLabel + "</a><br>Checked: 9 November 2026. Recheck the issuing authority before applying.</p>";
 }
 $("country").addEventListener("change", renderRequirements);
-$("document").addEventListener("change", renderRequirements);
+$("document").addEventListener("change", () => {
+ if ($("document").value !== "custom") {
+  backgroundExportRequestId++;
+  downloadBackground.disabled = true;
+ }
+ renderRequirements();
+});
 $("switchToCustom").addEventListener("click", () => {
  $("document").value = "custom";
  renderRequirements();
@@ -377,9 +383,11 @@ $("reset").addEventListener("click", () => {
 });
 let uploadRequestId = 0;
 let exportRequestId = 0;
+let backgroundExportRequestId = 0;
 photo.addEventListener("change", async () => {
  const requestId = ++uploadRequestId;
  exportRequestId++; // Cancel any export still encoding the previous photo.
+ backgroundExportRequestId++; // Cancel pending background PNG exports for the previous photo.
  const file = photo.files && photo.files[0];
  if (!file) return;
  // Clear the previous result immediately so a slow phone file read cannot leave
@@ -770,7 +778,11 @@ function updateBackgroundPreview(){
  const fill = backgroundFill.value;
  backgroundCanvas.style.backgroundColor = fill === "transparent" ? "#eef1f5" : fill;
 }
-backgroundFill.addEventListener("change", updateBackgroundPreview);
+backgroundFill.addEventListener("change", () => {
+ backgroundExportRequestId++;
+ updateBackgroundPreview();
+ if (!backgroundCanvas.hidden && $("document").value === "custom") downloadBackground.disabled = false;
+});
 updateBackgroundPreview();
 let segmenterPromise = null;
 async function getImageSegmenter(){
@@ -800,6 +812,7 @@ backgroundButton.addEventListener("click", async () => {
   return;
  }
  backgroundButton.disabled=true;downloadBackground.disabled=true;
+ backgroundExportRequestId++;
  backgroundCanvas.hidden=true; backgroundCanvas.width=0; backgroundCanvas.height=0;
  backgroundStatus.textContent="Loading the segmentation model and detecting the person locally… First use may take a little while.";
  try {
@@ -850,7 +863,10 @@ backgroundButton.addEventListener("click", async () => {
  } finally {backgroundButton.disabled=false;}
 });
 downloadBackground.addEventListener("click",()=>{
- if(backgroundCanvas.hidden||!backgroundCanvas.width)return;
+ if(backgroundCanvas.hidden||!backgroundCanvas.width||$("document").value!=="custom")return;
+ const requestId=++backgroundExportRequestId;
+ const sourceImageSrc=$("preview").src;
+ const sourceWidth=backgroundCanvas.width,sourceHeight=backgroundCanvas.height;
  const fill=document.getElementById("backgroundFill").value;
  const exportPixels=backgroundCanvas.width*backgroundCanvas.height;
  if(!Number.isSafeInteger(exportPixels)||exportPixels>12000000){
@@ -867,6 +883,12 @@ downloadBackground.addEventListener("click",()=>{
   exportCanvas.toBlob(blob=>{
    // Release the temporary full-resolution export buffer on both success and failure.
    exportCanvas.width=0;exportCanvas.height=0;
+   const stillCurrent=requestId===backgroundExportRequestId && $("document").value==="custom" && $("preview").src===sourceImageSrc && !backgroundCanvas.hidden && backgroundCanvas.width===sourceWidth && backgroundCanvas.height===sourceHeight && backgroundFill.value===fill;
+   if(!stillCurrent){
+    backgroundStatus.textContent="PNG export cancelled because the photo or background settings changed. Run the export again on the current result.";
+    downloadBackground.disabled=$("document").value!=="custom" || backgroundCanvas.hidden || !backgroundCanvas.width;
+    return;
+   }
    if(!blob){backgroundStatus.textContent="Could not create PNG. Please try again.";downloadBackground.disabled=false;return;}
    const url=URL.createObjectURL(blob),link=document.createElement("a");
    link.href=url;link.download=fill==="transparent"?"passport-ai-transparent-background.png":"passport-ai-background-"+fill.replace("#","")+".png";link.click();
@@ -875,7 +897,8 @@ downloadBackground.addEventListener("click",()=>{
    downloadBackground.disabled=false;
   },"image/png");
  } catch(error) {
-  exportCanvas.width=0;exportCanvas.height=0;downloadBackground.disabled=false;
+  exportCanvas.width=0;exportCanvas.height=0;
+  downloadBackground.disabled=$("document").value!=="custom" || backgroundCanvas.hidden || !backgroundCanvas.width;
   backgroundStatus.textContent="Could not prepare PNG export. "+(error&&error.message?error.message:"Please try again.");
  }
 });
