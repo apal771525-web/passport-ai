@@ -329,6 +329,34 @@ test('uses validated face framing metrics in the browser UI', async ({ page }) =
   await expect(page.locator('#detectedFaceBox')).toHaveAttribute('width', '0.5');
 });
 
+test('does not draw a face outline when detector geometry is invalid', async ({ page }) => {
+  await page.route('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: `
+        export const FilesetResolver = { forVisionTasks: async () => ({}) };
+        export const FaceDetector = {
+          createFromOptions: async () => ({
+            detect: () => ({
+              detections: [{
+                boundingBox: { originX: 0.8, originY: 0.1, width: 0.5, height: 0.5 },
+                categories: [{ score: 0.91 }]
+              }]
+            })
+          })
+        };
+      `
+    })
+  );
+  await page.goto('/');
+  await page.locator('#photo').setInputFiles({ name: 'invalid-face-box.png', mimeType: 'image/png', buffer: tinyPng });
+  await page.locator('#analyzeFace').click();
+  await expect(page.locator('#faceStatus')).toContainText('invalid geometry');
+  await expect(page.locator('#detectedFaceBox')).toHaveAttribute('width', '0');
+  await expect(page.locator('#detectedFaceBox')).toHaveAttribute('height', '0');
+});
+
 test('clears the previous face outline when a later analysis finds multiple faces', async ({ page }) => {
   await page.route('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs', route =>
     route.fulfill({
