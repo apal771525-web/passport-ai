@@ -865,7 +865,7 @@ backgroundButton.addEventListener("click", async () => {
 downloadBackground.addEventListener("click",()=>{
  if(backgroundCanvas.hidden||!backgroundCanvas.width||document.getElementById("document").value!=="custom")return;
  const requestId=++window.__backgroundExportRequestId;
- const sourceImageSrc=$("preview").src;
+ const sourceImageSrc=document.getElementById("preview").src;
  const sourceWidth=backgroundCanvas.width,sourceHeight=backgroundCanvas.height;
  const fill=document.getElementById("backgroundFill").value;
  const exportPixels=backgroundCanvas.width*backgroundCanvas.height;
@@ -883,7 +883,7 @@ downloadBackground.addEventListener("click",()=>{
   exportCanvas.toBlob(blob=>{
    // Release the temporary full-resolution export buffer on both success and failure.
    exportCanvas.width=0;exportCanvas.height=0;
-   const stillCurrent=requestId===window.__backgroundExportRequestId && document.getElementById("document").value==="custom" && $("preview").src===sourceImageSrc && !backgroundCanvas.hidden && backgroundCanvas.width===sourceWidth && backgroundCanvas.height===sourceHeight && backgroundFill.value===fill;
+   const stillCurrent=requestId===window.__backgroundExportRequestId && document.getElementById("document").value==="custom" && document.getElementById("preview").src===sourceImageSrc && !backgroundCanvas.hidden && backgroundCanvas.width===sourceWidth && backgroundCanvas.height===sourceHeight && backgroundFill.value===fill;
    if(!stillCurrent){
     backgroundStatus.textContent="PNG export cancelled because the photo or background settings changed. Run the export again on the current result.";
     downloadBackground.disabled=document.getElementById("document").value!=="custom" || backgroundCanvas.hidden || !backgroundCanvas.width;
