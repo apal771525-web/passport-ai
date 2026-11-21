@@ -109,7 +109,7 @@ footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 <canvas id="backgroundCanvas" class="preview" hidden></canvas>
 <label for="backgroundFill">Background for download</label>
 <select id="backgroundFill"><option value="transparent">Keep transparent</option><option value="#ffffff">White</option><option value="#eeeeee">Light grey</option><option value="#e5efff">Light blue</option></select>
-<p class="note">The preview above remains transparent. A selected solid colour is added only to the downloaded copy; your original photo is not changed.</p>
+<p class="note">The selected colour is previewed behind transparent pixels and applied to the downloaded copy. Your original photo is not changed.</p>
 <button class="secondary" id="downloadBackground" type="button" disabled>Download PNG with selected background</button>
 </div>
 <div class="image-info" style="margin-top:12px">
@@ -750,6 +750,13 @@ const backgroundButton = document.getElementById("removeBackground");
 const backgroundStatus = document.getElementById("backgroundStatus");
 const backgroundCanvas = document.getElementById("backgroundCanvas");
 const downloadBackground = document.getElementById("downloadBackground");
+const backgroundFill = document.getElementById("backgroundFill");
+function updateBackgroundPreview(){
+ const fill = backgroundFill.value;
+ backgroundCanvas.style.backgroundColor = fill === "transparent" ? "#eef1f5" : fill;
+}
+backgroundFill.addEventListener("change", updateBackgroundPreview);
+updateBackgroundPreview();
 let segmenterPromise = null;
 async function getImageSegmenter(){
  if (!segmenterPromise) {
@@ -773,7 +780,7 @@ backgroundButton.addEventListener("click", async () => {
   const segmenter=await getImageSegmenter();
   const result=segmenter.segment(image);
   try {
-   if (originalImage !== image || image.src !== document.getElementById("preview").src) {
+   if (!originalImage || originalImage.src !== image.src) {
     backgroundStatus.textContent = "A newer photo was selected. Run background removal again on the current photo.";
     return;
    }
