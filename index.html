@@ -459,6 +459,8 @@ $("process").addEventListener("click", () => {
   canvas.height = h;
   ctx.fillStyle = render.plan.background;
   ctx.fillRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
   ctx.filter = "brightness(" + Number($("brightness").value) + "%) contrast(" + Number($("contrast").value) + "%) saturate(" + Number($("saturation").value) + "%)";
   ctx.drawImage(originalImage, render.plan.drawX, render.plan.drawY, render.plan.drawWidth, render.plan.drawHeight);
   ctx.filter = "none";
@@ -533,6 +535,13 @@ $("printSheetButton").addEventListener("click", () => {
  const pw = Number($("printWidth").value), ph = Number($("printHeight").value), copies = Number($("printCopies").value);
  if (!Number.isFinite(pw) || !Number.isFinite(ph) || pw < 10 || pw > 100 || ph < 10 || ph > 150 || ![4,6,8,10].includes(copies)) {
   alert("Enter a print size between 10–100 mm wide and 10–150 mm high, and choose a valid copy count."); return;
+ }
+ const columns = 2;
+ const rows = Math.ceil(copies / columns);
+ const requiredWidth = columns * pw + (columns - 1) * 5;
+ const requiredHeight = rows * ph + (rows - 1) * 5;
+ if (requiredWidth > 190 || requiredHeight > 277) {
+  alert("These copies do not fit on an A4 sheet with 10 mm margins. Reduce the photo size or copy count before printing."); return;
  }
  const popup = window.open("", "_blank");
  if (!popup) { alert("Your browser blocked the print window. Allow pop-ups for this page and try again."); return; }
