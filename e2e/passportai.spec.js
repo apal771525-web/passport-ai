@@ -135,6 +135,40 @@ test('shows a draggable crop frame in custom mode and syncs it with framing slid
   await expect(page.locator('#download')).toBeDisabled();
 });
 
+test("uses the person confidence mask, releases segmentation results and exports a PNG", async ({ page }) => {
+  await page.route("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", route => route.fulfill({
+    status: 200,
+    contentType: "application/javascript",
+    body: `
+      export const FilesetResolver = { forVisionTasks: async () => ({}) };
+      export const ImageSegmenter = {
+        createFromOptions: async () => ({
+          segment: () => ({
+            confidenceMasks: [
+              { width: 2, height: 2, getAsFloat32Array: () => new Float32Array([0, 0, 0, 0]) },
+              { width: 2, height: 2, getAsFloat32Array: () => new Float32Array([1, 1, 1, 1]) }
+            ],
+            categoryMask: { width: 2, height: 2, getAsUint8Array: () => new Uint8Array([0, 0, 0, 0]) },
+            close: () => { globalThis.__segmentationResultClosed = true; }
+          })
+        })
+      };
+    `
+  }));
+  await page.goto("/");
+  await page.locator("#document").selectOption("custom");
+  await page.locator("#photo").setInputFiles({ name: "segmentation-test.png", mimeType: "image/png", buffer: tinyPng });
+  await page.locator("#removeBackground").click();
+  await expect(page.locator("#backgroundStatus")).toContainText(/softly feathered edge/i);
+  await expect(page.locator("#backgroundCanvas")).toBeVisible();
+  await expect(page.locator("#downloadBackground")).toBeEnabled();
+  expect(await page.evaluate(() => globalThis.__segmentationResultClosed)).toBe(true);
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#downloadBackground").click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.png$/i);
+});
+
 test("blocks memory-heavy background removal before allocating a full-resolution canvas", async ({ page }) => {
   await page.goto("/");
   await page.locator("#document").selectOption("custom");
