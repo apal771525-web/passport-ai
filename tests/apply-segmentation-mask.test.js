@@ -52,3 +52,35 @@ test("sanitizes non-finite and out-of-range confidence values", () => {
   applyFeatheredMaskToImageData(image, 4, 1, new Float32Array([NaN, -2, 2, 1]), 4, 1);
   assert.deepEqual([image.data[3], image.data[7], image.data[11], image.data[15]], [0, 0, 255, 255]);
 });
+
+
+test("synthetic portrait silhouette keeps a solid interior and a smooth monotonic edge", () => {
+  const size = 9;
+  const mask = new Float32Array(size * size);
+  const center = (size - 1) / 2;
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const distance = Math.hypot(x - center, y - center);
+      // Synthetic soft person silhouette: opaque core, feathered boundary,
+      // transparent exterior. This tests mask processing, not AI inference.
+      mask[y * size + x] = Math.max(0, Math.min(1, (3.8 - distance) / 1.2));
+    }
+  }
+
+  const image = rgba(size, size);
+  applyFeatheredMaskToImageData(image, size, size, mask, size, size);
+
+  const alphaAt = (x, y) => image.data[(y * size + x) * 4 + 3];
+  assert.equal(alphaAt(4, 4), 255, "face/head interior should remain fully opaque");
+  assert.equal(alphaAt(0, 0), 0, "far background should be transparent");
+
+  const centerRow = Array.from({ length: size }, (_, x) => alphaAt(x, 4));
+  for (let x = 1; x <= center; x++) {
+    assert.ok(centerRow[x] >= centerRow[x - 1], "alpha should not decrease toward the silhouette center");
+  }
+  for (let x = center + 1; x < size; x++) {
+    assert.ok(centerRow[x] <= centerRow[x - 1], "alpha should not increase beyond the silhouette center");
+  }
+  assert.ok(centerRow.some(value => value > 0 && value < 255), "silhouette edge should contain feathered alpha values");
+});
