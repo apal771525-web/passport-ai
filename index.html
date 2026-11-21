@@ -979,6 +979,9 @@ faceButton.addEventListener("click", async () => {
   if (requestId !== window.__faceAnalysisRequestId || image.src !== requestedImageSrc) return;
   lastAnalyzedImage = image.src;
   lastFaceBox = null;
+  const detectedFaceRect = document.getElementById("detectedFaceBox");
+  detectedFaceRect.setAttribute("width", "0");
+  detectedFaceRect.setAttribute("height", "0");
   if (detections.length === 0) {
    document.getElementById("detectedFaceBox").setAttribute("width","0");
    document.getElementById("detectedFaceBox").setAttribute("height","0");
