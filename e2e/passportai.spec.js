@@ -135,6 +135,16 @@ test('shows a draggable crop frame in custom mode and syncs it with framing slid
   await expect(page.locator('#download')).toBeDisabled();
 });
 
+test("background fill selection updates the transparent preview backdrop", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#backgroundFill").selectOption("#ffffff");
+  await expect(page.locator("#backgroundCanvas")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await page.locator("#backgroundFill").selectOption("#e5efff");
+  await expect(page.locator("#backgroundCanvas")).toHaveCSS("background-color", "rgb(229, 239, 255)");
+  await page.locator("#backgroundFill").selectOption("transparent");
+  await expect(page.locator("#backgroundCanvas")).toHaveCSS("background-color", "rgb(238, 241, 245)");
+});
+
 test('runs the photo quality check locally after a valid upload', async ({ page }) => {
   await page.goto('/');
   await page.locator('#photo').setInputFiles({
