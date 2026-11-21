@@ -1,7 +1,7 @@
 const MAX_ANALYSIS_PIXELS = 256 * 256;
 
 export function validatePixelSample(data, width, height) {
-  if (!data || typeof data.length !== "number" || !Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 3 || height < 3) {
+  if (!(data instanceof Uint8Array) && !(data instanceof Uint8ClampedArray) || !Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 3 || height < 3) {
     return { valid: false, code: "INVALID_SAMPLE" };
   }
   const pixels = width * height;
