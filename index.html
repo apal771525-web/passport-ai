@@ -553,18 +553,29 @@ $("download").addEventListener("click", async () => {
    blob = await new Promise(resolve => canvas.toBlob(resolve, format, Number($("quality").value)/100));
   }
   if (!blob || blob.size === 0 || blob.type !== format) throw new Error("The browser did not create a valid "+extension.toUpperCase()+" file.");
-  const url = URL.createObjectURL(blob), link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
   const filename = "passport-ai-photo-" + canvas.width + "x" + canvas.height + "." + extension;
-  link.href = url;
-  link.download = filename;
-  link.textContent = "Tap here if the download did not start automatically";
-  link.style.display = "inline-block";
-  link.style.marginTop = "8px";
-  link.style.fontWeight = "700";
-  link.style.color = "#2459d3";
+  // Preserve the automatic download path for browsers that support it.
+  const automaticLink = document.createElement("a");
+  automaticLink.href = url;
+  automaticLink.download = filename;
+  automaticLink.style.display = "none";
+  document.body.appendChild(automaticLink);
+  automaticLink.click();
+  automaticLink.remove();
+
+  // Keep a visible fallback link for mobile browsers that suppress the synthetic click.
+  const fallbackLink = document.createElement("a");
+  fallbackLink.href = url;
+  fallbackLink.download = filename;
+  fallbackLink.textContent = "Tap here if the download did not start automatically";
+  fallbackLink.style.display = "inline-block";
+  fallbackLink.style.marginTop = "8px";
+  fallbackLink.style.fontWeight = "700";
+  fallbackLink.style.color = "#2459d3";
   $("downloadHelp").textContent = "Download requested: "+canvas.width+" × "+canvas.height+" px · "+(blob.size/1024).toFixed(1)+" KB · "+blob.type+"."+sizeNote+" Check your phone's Downloads folder. ";
-  $("downloadHelp").appendChild(link);
-  // Keep the fallback URL alive long enough for mobile users to tap it manually.
+  $("downloadHelp").appendChild(fallbackLink);
+  // Keep the fallback URL alive long enough for a manual tap on mobile.
   setTimeout(() => URL.revokeObjectURL(url), 60000);
  } catch (error) {
   $("downloadHelp").textContent = "Export failed: "+(error && error.message ? error.message : "unknown error")+". Try a larger target or another format.";
