@@ -774,6 +774,7 @@ backgroundButton.addEventListener("click", async () => {
  const image=document.getElementById("preview");
  if (document.getElementById("document").value !== "custom") {backgroundStatus.textContent="This experimental edit is restricted to Custom Photo mode.";return;}
  if (!image || !image.complete || !image.naturalWidth) {backgroundStatus.textContent="Upload a photo first.";return;}
+ const requestedImageSrc=image.src;
  const sourcePixels=image.naturalWidth*image.naturalHeight;
  // Full-resolution ImageData needs several bytes per source pixel in addition
  // to the browser image, canvas backing store and model buffers. Keep this
@@ -789,7 +790,7 @@ backgroundButton.addEventListener("click", async () => {
   const segmenter=await getImageSegmenter();
   const result=segmenter.segment(image);
   try {
-   if (!originalImage || originalImage.src !== image.src) {
+   if (image.src !== requestedImageSrc) {
     backgroundStatus.textContent = "A newer photo was selected. Run background removal again on the current photo.";
     return;
    }
