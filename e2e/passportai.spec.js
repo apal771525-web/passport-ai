@@ -588,3 +588,24 @@ test("cancels a pending background PNG export when a new photo is uploaded", asy
   expect(await page.evaluate(() => globalThis.__backgroundExportObjectUrlCalls)).toBe(objectUrlCallsAfterReplacementUpload);
   await expect(page.locator("#downloadBackground")).toBeDisabled();
 });
+
+test("hides stale rendered output after size preset and reset changes", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#document").selectOption("custom");
+  await page.locator("#photo").setInputFiles({ name: "preset-invalidation.png", mimeType: "image/png", buffer: tinyPng });
+  await page.locator("#process").click();
+  await expect(page.locator("#canvas")).toBeVisible();
+  await expect(page.locator("#download")).toBeEnabled();
+
+  await page.locator("#sizePreset").selectOption("square-2x2");
+  await expect(page.locator("#canvas")).toBeHidden();
+  await expect(page.locator("#download")).toBeDisabled();
+  await expect(page.locator("#status")).toContainText(/size preset changed/i);
+
+  await page.locator("#process").click();
+  await expect(page.locator("#canvas")).toBeVisible();
+  await page.locator("#reset").click();
+  await expect(page.locator("#canvas")).toBeHidden();
+  await expect(page.locator("#download")).toBeDisabled();
+  await expect(page.locator("#status")).toContainText(/framing reset/i);
+});
