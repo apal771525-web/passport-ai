@@ -345,3 +345,38 @@ test('changing away from custom mode disables general-purpose processing', async
   await expect(page.locator('#process')).toBeDisabled();
   await expect(page.locator('#download')).toBeDisabled();
 });
+
+
+test("cancels a pending export if photo settings change before encoding finishes", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#document").selectOption("custom");
+  await page.locator("#photo").setInputFiles({ name: "pending-export.png", mimeType: "image/png", buffer: tinyPng });
+  await page.locator("#process").click();
+  await expect(page.locator("#download")).toBeEnabled();
+
+  await page.evaluate(() => {
+    HTMLCanvasElement.prototype.toBlob = function(callback) {
+      globalThis.__pendingPhotoExport = callback;
+    };
+    const originalCreateObjectURL = URL.createObjectURL.bind(URL);
+    globalThis.__exportObjectUrlCalls = 0;
+    URL.createObjectURL = value => {
+      if (value instanceof Blob) globalThis.__exportObjectUrlCalls++;
+      return originalCreateObjectURL(value);
+    };
+  });
+
+  await page.locator("#download").click();
+  await expect.poll(() => page.evaluate(() => typeof globalThis.__pendingPhotoExport)).toBe("function");
+
+  await page.locator("#brightness").evaluate(el => {
+    el.value = "115";
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(page.locator("#download")).toBeDisabled();
+
+  await page.evaluate(() => globalThis.__pendingPhotoExport(new Blob(["stale"], { type: "image/png" })));
+  await expect(page.locator("#downloadHelp")).toContainText(/export cancelled because the photo changed/i);
+  expect(await page.evaluate(() => globalThis.__exportObjectUrlCalls)).toBe(0);
+  await expect(page.locator("#canvas")).toBeHidden();
+});
