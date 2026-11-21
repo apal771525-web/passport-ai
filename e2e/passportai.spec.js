@@ -463,8 +463,9 @@ test("cancels a pending background PNG export when a new photo is uploaded", asy
   await expect.poll(() => page.evaluate(() => typeof globalThis.__pendingBackgroundExport)).toBe("function");
 
   await page.locator("#photo").setInputFiles({ name: "replacement-photo.png", mimeType: "image/png", buffer: tinyPng });
+  const objectUrlCallsAfterReplacementUpload = await page.evaluate(() => globalThis.__backgroundExportObjectUrlCalls);
   await page.evaluate(() => globalThis.__pendingBackgroundExport(new Blob(["stale"], { type: "image/png" })));
   await expect(page.locator("#backgroundStatus")).toContainText(/export cancelled because the photo or background settings changed/i);
-  expect(await page.evaluate(() => globalThis.__backgroundExportObjectUrlCalls)).toBe(0);
+  expect(await page.evaluate(() => globalThis.__backgroundExportObjectUrlCalls)).toBe(objectUrlCallsAfterReplacementUpload);
   await expect(page.locator("#downloadBackground")).toBeDisabled();
 });
