@@ -323,6 +323,26 @@ function updateRangeLabels(){
  $("verticalValue").textContent = $("vertical").value;
 }
 ["zoom","horizontal","vertical","quality"].forEach(id => $(id).addEventListener("input", updateRangeLabels));
+function invalidateRenderedOutput(reason = "Photo settings changed.") {
+ if (!outputReady) return;
+ outputReady = false;
+ canvas.hidden = true;
+ $("download").disabled = true;
+ $("printSheetButton").disabled = true;
+ $("status").textContent = reason + " Tap Create Photo to generate an updated result.";
+ $("processHelp").textContent = "Your previous output is no longer current. Create Photo again after adjusting the settings.";
+ $("downloadHelp").textContent = "Download is disabled until you create a fresh photo with the latest settings.";
+}
+const renderAffectingInputs = ["width","height","zoom","horizontal","vertical","background","brightness","contrast","saturation"];
+renderAffectingInputs.forEach(id => {
+ const control = $(id);
+ control.addEventListener("input", () => {
+  invalidateRenderedOutput();
+  if (id === "width" || id === "height") updateImageInfo();
+ });
+ control.addEventListener("change", () => invalidateRenderedOutput());
+});
+
 function updateAdjustmentLabels(){for(const key of ["brightness","contrast","saturation"]) $(key+"Value").textContent=$(key).value+"%";}
 ["brightness","contrast","saturation"].forEach(id=>$(id).addEventListener("input",updateAdjustmentLabels));
 $("sizePreset").addEventListener("change",()=>{
