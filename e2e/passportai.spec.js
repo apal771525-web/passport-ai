@@ -135,6 +135,26 @@ test('shows a draggable crop frame in custom mode and syncs it with framing slid
   await expect(page.locator('#download')).toBeDisabled();
 });
 
+test('clears an interrupted crop drag when pointer capture is lost', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#document').selectOption('custom');
+  await page.locator('#photo').setInputFiles({ name: 'crop-capture.png', mimeType: 'image/png', buffer: tinyPng });
+  await page.locator('#width').fill('413');
+  await page.locator('#height').fill('531');
+  await page.locator('#width').dispatchEvent('input');
+  await page.locator('#cropDragFrame').scrollIntoViewIfNeeded();
+  const frame = await page.locator('#cropDragFrame').boundingBox();
+  expect(frame).not.toBeNull();
+  await page.mouse.move(frame.x + frame.width / 2, frame.y + frame.height / 2);
+  await page.mouse.down();
+  await page.locator('#cropDragFrame').dispatchEvent('lostpointercapture', { pointerId: 1 });
+  await expect(page.locator('#guideStatus')).toContainText('Crop frame moved');
+  await page.mouse.up();
+  await page.locator('#cropDragFrame').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#download')).toBeDisabled();
+});
+
 test("uses the person confidence mask, releases segmentation results and exports a PNG", async ({ page }) => {
   await page.route("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", route => route.fulfill({
     status: 200,
