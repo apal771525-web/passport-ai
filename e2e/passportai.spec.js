@@ -167,6 +167,13 @@ test("uses the person confidence mask, releases segmentation results and exports
   await page.locator("#downloadBackground").click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.png$/i);
+
+  // A new upload must release the previous full-resolution canvas backing store.
+  await page.locator("#photo").setInputFiles({ name: "next-photo.png", mimeType: "image/png", buffer: tinyPng });
+  await expect(page.locator("#backgroundCanvas")).toBeHidden();
+  await expect(page.locator("#backgroundCanvas")).toHaveJSProperty("width", 0);
+  await expect(page.locator("#backgroundCanvas")).toHaveJSProperty("height", 0);
+  await expect(page.locator("#downloadBackground")).toBeDisabled();
 });
 
 test("blocks memory-heavy background removal before allocating a full-resolution canvas", async ({ page }) => {
