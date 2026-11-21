@@ -794,6 +794,13 @@ backgroundButton.addEventListener("click", async () => {
  backgroundStatus.textContent="Loading the segmentation model and detecting the person locally… First use may take a little while.";
  try {
   const segmenter=await getImageSegmenter();
+  // The user may upload another photo while the model/WASM is loading.
+  // Check the captured source before inference so stale requests never process
+  // the newly selected image or waste a full segmentation pass.
+  if (image.src !== requestedImageSrc) {
+   backgroundStatus.textContent = "A newer photo was selected. Run background removal again on the current photo.";
+   return;
+  }
   const result=segmenter.segment(image);
   try {
    if (image.src !== requestedImageSrc) {
