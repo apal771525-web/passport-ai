@@ -17,6 +17,14 @@ export function applyFeatheredMaskToImageData(imageData, sourceWidth, sourceHeig
   const scaleY = maskHeight / sourceHeight;
   const range = high - low;
 
+  // Confidence masks should be in [0, 1]. Clamp finite samples and
+  // treat non-finite model output as background instead of allowing NaN
+  // to poison alpha and create unpredictable transparent pixels.
+  const sample = index => {
+    const value = mask[index];
+    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+  };
+
   for (let y = 0; y < sourceHeight; y++) {
     const maskY = Math.max(0, Math.min(maskHeight - 1, (y + 0.5) * scaleY - 0.5));
     const y0 = Math.floor(maskY);
@@ -31,13 +39,6 @@ export function applyFeatheredMaskToImageData(imageData, sourceWidth, sourceHeig
       const x0 = Math.floor(maskX);
       const x1 = Math.min(maskWidth - 1, x0 + 1);
       const tx = maskX - x0;
-      // Confidence masks should be in [0, 1]. Clamp finite samples and
-      // treat non-finite model output as background instead of allowing NaN
-      // to poison alpha and create unpredictable transparent pixels.
-      const sample = index => {
-        const value = mask[index];
-        return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
-      };
       const top = sample(row0 + x0) * (1 - tx) + sample(row0 + x1) * tx;
       const bottom = sample(row1 + x0) * (1 - tx) + sample(row1 + x1) * tx;
       const confidence = top * (1 - ty) + bottom * ty;
