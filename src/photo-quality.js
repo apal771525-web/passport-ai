@@ -18,7 +18,13 @@ export function analyzePhotoPixels(data, width, height) {
   const gray = new Float64Array(validation.pixels);
   let total = 0, dark = 0, bright = 0;
   for (let i = 0, p = 0; i < validation.pixels; i++, p += 4) {
-    const value = 0.2126 * data[p] + 0.7152 * data[p + 1] + 0.0722 * data[p + 2];
+    // Evaluate transparency as composited over white, matching a common
+    // document-photo preview instead of treating transparent RGB as black.
+    const alpha = data[p + 3] / 255;
+    const red = data[p] * alpha + 255 * (1 - alpha);
+    const green = data[p + 1] * alpha + 255 * (1 - alpha);
+    const blue = data[p + 2] * alpha + 255 * (1 - alpha);
+    const value = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
     gray[i] = value;
     total += value;
     if (value < 25) dark++;
