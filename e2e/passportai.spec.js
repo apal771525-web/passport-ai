@@ -163,10 +163,21 @@ test("uses the person confidence mask, releases segmentation results and exports
   await expect(page.locator("#backgroundCanvas")).toBeVisible();
   await expect(page.locator("#downloadBackground")).toBeEnabled();
   expect(await page.evaluate(() => globalThis.__segmentationResultClosed)).toBe(true);
+  await page.evaluate(() => {
+    const original = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function(callback, type, quality) {
+      const canvas = this;
+      return original.call(this, blob => {
+        callback(blob);
+        globalThis.__exportCanvasAfterCallback = { width: canvas.width, height: canvas.height };
+      }, type, quality);
+    };
+  });
   const downloadPromise = page.waitForEvent("download");
   await page.locator("#downloadBackground").click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.png$/i);
+  await expect.poll(() => page.evaluate(() => globalThis.__exportCanvasAfterCallback)).toEqual({ width: 0, height: 0 });
 
   // A new upload must release the previous full-resolution canvas backing store.
   await page.locator("#photo").setInputFiles({ name: "next-photo.png", mimeType: "image/png", buffer: tinyPng });
