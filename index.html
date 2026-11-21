@@ -840,17 +840,27 @@ downloadBackground.addEventListener("click",()=>{
   backgroundStatus.textContent="This background-removal result is too large to export safely on this device. Please use a photo up to 12 megapixels.";
   return;
  }
+ downloadBackground.disabled=true;
  const exportCanvas=document.createElement("canvas");
  exportCanvas.width=backgroundCanvas.width;exportCanvas.height=backgroundCanvas.height;
  const exportCtx=exportCanvas.getContext("2d");
  if(fill!=="transparent"){exportCtx.fillStyle=fill;exportCtx.fillRect(0,0,exportCanvas.width,exportCanvas.height);}
  exportCtx.drawImage(backgroundCanvas,0,0);
- exportCanvas.toBlob(blob=>{
-  if(!blob){backgroundStatus.textContent="Could not create PNG. Please try again.";return;}
-  const url=URL.createObjectURL(blob),link=document.createElement("a");
-  link.href=url;link.download=fill==="transparent"?"passport-ai-transparent-background.png":"passport-ai-background-"+fill.replace("#","")+".png";link.click();
-  setTimeout(()=>URL.revokeObjectURL(url),1500);
- },"image/png");
+ try {
+  exportCanvas.toBlob(blob=>{
+   // Release the temporary full-resolution export buffer on both success and failure.
+   exportCanvas.width=0;exportCanvas.height=0;
+   if(!blob){backgroundStatus.textContent="Could not create PNG. Please try again.";downloadBackground.disabled=false;return;}
+   const url=URL.createObjectURL(blob),link=document.createElement("a");
+   link.href=url;link.download=fill==="transparent"?"passport-ai-transparent-background.png":"passport-ai-background-"+fill.replace("#","")+".png";link.click();
+   backgroundStatus.textContent="PNG download prepared. If it does not appear, check your browser downloads.";
+   setTimeout(()=>URL.revokeObjectURL(url),60000);
+   downloadBackground.disabled=false;
+  },"image/png");
+ } catch(error) {
+  exportCanvas.width=0;exportCanvas.height=0;downloadBackground.disabled=false;
+  backgroundStatus.textContent="Could not prepare PNG export. "+(error&&error.message?error.message:"Please try again.");
+ }
 });
 import { analyzePhotoPixels, assessFaceFraming } from "./src/photo-quality.js";
 import { createVisionRuntime } from "./src/vision-runtime.js";
