@@ -28,6 +28,24 @@ test("reports brightness and clipping proportions for a uniform sample", () => {
   assert.equal(result.metrics.sharpnessVariance, 0);
 });
 
+test("composites transparent pixels over white for exposure estimates", () => {
+  const transparent = new Uint8ClampedArray(8 * 8 * 4);
+  for (let i = 0; i < 64; i++) transparent.set([0, 0, 0, 0], i * 4);
+  const result = analyzePhotoPixels(transparent, 8, 8);
+  assert.equal(result.valid, true);
+  assert.equal(result.metrics.meanBrightness, 255);
+  assert.equal(result.metrics.darkPixelPercent, 0);
+  assert.equal(result.metrics.brightPixelPercent, 100);
+});
+
+test("partially transparent pixels are blended against white before sampling", () => {
+  const data = new Uint8ClampedArray(8 * 8 * 4);
+  for (let i = 0; i < 64; i++) data.set([0, 0, 0, 128], i * 4);
+  const result = analyzePhotoPixels(data, 8, 8);
+  assert.ok(result.metrics.meanBrightness > 126 && result.metrics.meanBrightness < 128);
+  assert.equal(result.metrics.darkPixelPercent, 0);
+});
+
 test("detects very dark and very bright pixel proportions", () => {
   const data = rgba(4, 4, [0, 0, 0]);
   for (let i = 0; i < 8; i++) data.set([255, 255, 255, 255], i * 4);
