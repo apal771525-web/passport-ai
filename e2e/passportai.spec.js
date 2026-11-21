@@ -135,6 +135,20 @@ test('shows a draggable crop frame in custom mode and syncs it with framing slid
   await expect(page.locator('#download')).toBeDisabled();
 });
 
+test("blocks memory-heavy background removal before allocating a full-resolution canvas", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#document").selectOption("custom");
+  await page.locator("#photo").setInputFiles({ name: "large-photo.png", mimeType: "image/png", buffer: tinyPng });
+  await page.locator("#preview").evaluate(img => {
+    Object.defineProperty(img, "naturalWidth", { configurable: true, value: 5000 });
+    Object.defineProperty(img, "naturalHeight", { configurable: true, value: 4000 });
+  });
+  await page.locator("#removeBackground").click();
+  await expect(page.locator("#backgroundStatus")).toContainText(/up to 12 megapixels/i);
+  await expect(page.locator("#removeBackground")).toBeEnabled();
+  await expect(page.locator("#downloadBackground")).toBeDisabled();
+});
+
 test("background fill selection updates the transparent preview backdrop", async ({ page }) => {
   await page.goto("/");
   await page.locator("#backgroundFill").selectOption("#ffffff");
