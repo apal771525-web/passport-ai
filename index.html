@@ -704,7 +704,7 @@ async function getImageSegmenter(){
    const {ImageSegmenter, vision} = await getVisionRuntime();
    return await ImageSegmenter.createFromOptions(vision, {
     baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite",delegate:"CPU"},
-    runningMode:"IMAGE",outputCategoryMask:true,outputConfidenceMasks:false
+    runningMode:"IMAGE",outputCategoryMask:true,outputConfidenceMasks:true
    });
   })().catch(error => {segmenterPromise=null;throw error;});
  }
@@ -719,26 +719,39 @@ backgroundButton.addEventListener("click", async () => {
  try {
   const segmenter=await getImageSegmenter();
   const result=segmenter.segment(image);
-  const mask=result.categoryMask;
-  if (!mask) throw new Error("The model did not return a category mask.");
-  const maskData=mask.getAsUint8Array();
-  const mw=mask.width,mh=mask.height;
-  if (!mw || !mh || !maskData || maskData.length < mw*mh) throw new Error("The segmentation mask was empty.");
-  backgroundCanvas.width=image.naturalWidth;backgroundCanvas.height=image.naturalHeight;
-  const outCtx=backgroundCanvas.getContext("2d",{willReadFrequently:true});
-  outCtx.drawImage(image,0,0);
-  const pixels=outCtx.getImageData(0,0,backgroundCanvas.width,backgroundCanvas.height);
-  for(let y=0;y<backgroundCanvas.height;y++){
-   const my=Math.min(mh-1,Math.floor(y*mh/backgroundCanvas.height));
-   for(let x=0;x<backgroundCanvas.width;x++){
-    const mx=Math.min(mw-1,Math.floor(x*mw/backgroundCanvas.width));
-    if(maskData[my*mw+mx]===0) pixels.data[(y*backgroundCanvas.width+x)*4+3]=0;
+  try {
+   const confidenceMask=result.confidenceMasks?.[1];
+   const categoryMask=result.categoryMask;
+   const mask=confidenceMask || categoryMask;
+   if (!mask) throw new Error("The model did not return a person mask.");
+   const mw=mask.width,mh=mask.height;
+   const maskData=confidenceMask ? confidenceMask.getAsFloat32Array() : categoryMask.getAsUint8Array();
+   if (!mw || !mh || !maskData || maskData.length < mw*mh) throw new Error("The segmentation mask was empty.");
+   backgroundCanvas.width=image.naturalWidth;backgroundCanvas.height=image.naturalHeight;
+   const outCtx=backgroundCanvas.getContext("2d",{willReadFrequently:true});
+   outCtx.drawImage(image,0,0);
+   const pixels=outCtx.getImageData(0,0,backgroundCanvas.width,backgroundCanvas.height);
+   for(let y=0;y<backgroundCanvas.height;y++){
+    const maskY=(y+0.5)*mh/backgroundCanvas.height-0.5;
+    for(let x=0;x<backgroundCanvas.width;x++){
+     const pixel=(y*backgroundCanvas.width+x)*4+3;
+     if(confidenceMask){
+      const maskX=(x+0.5)*mw/backgroundCanvas.width-0.5;
+      const alpha=sampleFeatheredAlpha(maskData,mw,mh,maskX,maskY);
+      pixels.data[pixel]=Math.round(pixels.data[pixel]*alpha/255);
+     } else {
+      const mx=Math.min(mw-1,Math.max(0,Math.floor((x+0.5)*mw/backgroundCanvas.width)));
+      const my=Math.min(mh-1,Math.max(0,Math.floor((y+0.5)*mh/backgroundCanvas.height)));
+      if(maskData[my*mw+mx]===0) pixels.data[pixel]=0;
+     }
+    }
    }
-  }
-  outCtx.putImageData(pixels,0,0);
-  backgroundCanvas.hidden=false;downloadBackground.disabled=false;
-  backgroundStatus.textContent="Background removal finished. Review the transparent preview carefully; segmentation may miss details or remove parts of the subject. Download is available as PNG.";
-  if(result.close) result.close();
+   outCtx.putImageData(pixels,0,0);
+   backgroundCanvas.hidden=false;downloadBackground.disabled=false;
+   backgroundStatus.textContent=confidenceMask
+    ? "Background removal finished with a softly feathered edge. Review hair, ears and shoulders carefully; AI segmentation can still miss details. Download is available as PNG."
+    : "Background removal finished using the category mask. Review the transparent preview carefully; this model output does not include a soft confidence edge. Download is available as PNG.";
+  } finally { if(result.close) result.close(); }
  } catch(error) {
   backgroundStatus.textContent="Background removal could not run. Check your internet connection and browser support, then try again. "+(error&&error.message?error.message:"");
  } finally {backgroundButton.disabled=false;}
@@ -761,6 +774,7 @@ downloadBackground.addEventListener("click",()=>{
 import { analyzePhotoPixels, assessFaceFraming } from "./src/photo-quality.js";
 import { createVisionRuntime } from "./src/vision-runtime.js";
 import { scoreFaceQuality } from "./src/ediffiqa.js";
+import { sampleFeatheredAlpha } from "./src/segmentation-mask.js";
 const qualityButton = document.getElementById("qualityCheck");
 const qualityStatus = document.getElementById("qualityStatus");
 qualityButton.addEventListener("click", () => {
