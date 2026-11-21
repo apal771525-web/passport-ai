@@ -380,3 +380,47 @@ test("cancels a pending export if photo settings change before encoding finishes
   expect(await page.evaluate(() => globalThis.__exportObjectUrlCalls)).toBe(0);
   await expect(page.locator("#canvas")).toBeHidden();
 });
+
+
+test("cancels a pending background PNG export when its fill setting changes", async ({ page }) => {
+  await page.route("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", route => route.fulfill({
+    status: 200,
+    contentType: "application/javascript",
+    body: `
+      export const FilesetResolver = { forVisionTasks: async () => ({}) };
+      export const ImageSegmenter = {
+        createFromOptions: async () => ({
+          segment: () => ({
+            confidenceMasks: [
+              { width: 2, height: 2, getAsFloat32Array: () => new Float32Array([0, 0, 0, 0]) },
+              { width: 2, height: 2, getAsFloat32Array: () => new Float32Array([1, 1, 1, 1]) }
+            ],
+            close: () => {}
+          })
+        })
+      };
+    `
+  }));
+  await page.goto("/");
+  await page.locator("#document").selectOption("custom");
+  await page.locator("#photo").setInputFiles({ name: "background-export-race.png", mimeType: "image/png", buffer: tinyPng });
+  await page.locator("#removeBackground").click();
+  await expect(page.locator("#downloadBackground")).toBeEnabled();
+
+  await page.evaluate(() => {
+    HTMLCanvasElement.prototype.toBlob = function(callback) { globalThis.__pendingBackgroundExport = callback; };
+    globalThis.__backgroundExportObjectUrlCalls = 0;
+    URL.createObjectURL = value => {
+      if (value instanceof Blob) globalThis.__backgroundExportObjectUrlCalls++;
+      return "blob:should-not-be-created";
+    };
+  });
+  await page.locator("#downloadBackground").click();
+  await expect.poll(() => page.evaluate(() => typeof globalThis.__pendingBackgroundExport)).toBe("function");
+
+  await page.locator("#backgroundFill").selectOption("#e5efff");
+  await page.evaluate(() => globalThis.__pendingBackgroundExport(new Blob(["stale"], { type: "image/png" })));
+  await expect(page.locator("#backgroundStatus")).toContainText(/export cancelled because the photo or background settings changed/i);
+  expect(await page.evaluate(() => globalThis.__backgroundExportObjectUrlCalls)).toBe(0);
+  await expect(page.locator("#downloadBackground")).toBeEnabled();
+});
