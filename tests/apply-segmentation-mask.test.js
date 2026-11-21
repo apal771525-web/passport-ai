@@ -46,3 +46,9 @@ test("rejects invalid image buffers, mask sizes and thresholds", () => {
   assert.throws(() => applyFeatheredMaskToImageData(rgba(1, 1), 1, 1, new Float32Array(0), 1, 1), TypeError);
   assert.throws(() => applyFeatheredMaskToImageData(rgba(1, 1), 1, 1, new Float32Array([1]), 1, 1, 0.8, 0.2), TypeError);
 });
+
+test("sanitizes non-finite and out-of-range confidence values", () => {
+  const image = rgba(4, 1);
+  applyFeatheredMaskToImageData(image, 4, 1, new Float32Array([NaN, -2, 2, 1]), 4, 1);
+  assert.deepEqual([image.data[3], image.data[7], image.data[11], image.data[15]], [0, 0, 255, 255]);
+});
