@@ -48,6 +48,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .policy-warning{color:#8a3b12;background:#fff4e8;border:1px solid #f5d2b5;padding:10px;border-radius:9px;font-size:13px;line-height:1.5}
 #canvas{display:block;max-width:100%;height:auto;margin:12px auto;border:1px solid #e4e7ec;border-radius:8px}
 #canvas[hidden]{display:none}
+#backgroundCanvas:not([hidden]){display:block}
+#backgroundCanvas[hidden]{display:none}
 #status{padding:10px 12px;background:#f7f9fc;border-radius:9px}
 footer{text-align:center;padding:20px;color:#667085;font-size:13px}
 @media print{body{background:#fff}body *{visibility:hidden!important}#printPage,#printPage *{visibility:visible!important}#printPage{position:absolute;left:0;top:0;width:190mm;padding:0;margin:0}.print-grid{display:grid;grid-template-columns:repeat(2,auto);gap:5mm;align-items:start}.print-grid img{display:block;object-fit:fill;border:0}}
