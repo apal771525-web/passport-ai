@@ -371,9 +371,29 @@ $("reset").addEventListener("click", () => {
  $("status").textContent = "Framing reset. Select Create Photo to update your result.";
  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true;
 });
+let uploadRequestId = 0;
 photo.addEventListener("change", async () => {
+ const requestId = ++uploadRequestId;
  const file = photo.files && photo.files[0];
  if (!file) return;
+ // Clear the previous result immediately so a slow phone file read cannot leave
+ // an old image downloadable while a new upload is being validated.
+ outputReady = false;
+ originalImage = null;
+ originalFile = null;
+ canvas.hidden = true;
+ $("download").disabled = true;
+ $("printSheetButton").disabled = true;
+ $("analyzeFace").disabled = true;
+ $("qualityCheck").disabled = true;
+ $("aiFaceQuality").disabled = true;
+ $("removeBackground").disabled = true;
+ $("downloadBackground").disabled = true;
+ $("backgroundCanvas").hidden = true;
+ $("previewWrap").hidden = true;
+ $("status").textContent = "Checking your selected photo…";
+ $("downloadHelp").textContent = "A new upload is being checked. The previous photo is no longer available for download.";
+ if (imageUrl) { URL.revokeObjectURL(imageUrl); imageUrl = null; }
  if (!["image/jpeg","image/png","image/webp"].includes(file.type)) {
   alert("Please select a JPG, PNG or WebP image."); photo.value = ""; return;
  }
@@ -384,18 +404,25 @@ photo.addEventListener("change", async () => {
  try {
   signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
  } catch {
-  alert("This image could not be read. Please choose another file."); photo.value = ""; return;
+  if (requestId !== uploadRequestId) return;
+  alert("This image could not be read. Please choose another file."); photo.value = "";
+  $("status").textContent = "Image read failed. Please choose another photo.";
+  return;
  }
+ if (requestId !== uploadRequestId) return;
  const isJpeg = signature.length >= 3 && signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff;
  const isPng = signature.length >= 8 && signature[0] === 0x89 && signature[1] === 0x50 && signature[2] === 0x4e && signature[3] === 0x47 && signature[4] === 0x0d && signature[5] === 0x0a && signature[6] === 0x1a && signature[7] === 0x0a;
  const isWebp = signature.length >= 12 && signature[0] === 0x52 && signature[1] === 0x49 && signature[2] === 0x46 && signature[3] === 0x46 && signature[8] === 0x57 && signature[9] === 0x45 && signature[10] === 0x42 && signature[11] === 0x50;
  const signatureType = isJpeg ? "image/jpeg" : isPng ? "image/png" : isWebp ? "image/webp" : null;
  if (!signatureType || signatureType !== file.type) {
-  alert("The file contents do not match a supported JPG, PNG or WebP image. Please choose a genuine image file."); photo.value = ""; return;
+  alert("The file contents do not match a supported JPG, PNG or WebP image. Please choose a genuine image file."); photo.value = "";
+  $("status").textContent = "The selected file is not a valid JPG, PNG or WebP image.";
+  return;
  }
  const nextUrl = URL.createObjectURL(file);
  const img = new Image();
  img.onload = () => {
+  if (requestId !== uploadRequestId) { URL.revokeObjectURL(nextUrl); return; }
   if (!Number.isSafeInteger(img.naturalWidth) || !Number.isSafeInteger(img.naturalHeight) || img.naturalWidth <= 0 || img.naturalHeight <= 0 || img.naturalWidth * img.naturalHeight > 40000000) {
    URL.revokeObjectURL(nextUrl); photo.value = ""; alert("This image has invalid or excessively large dimensions. Please choose a smaller image."); return;
   }
@@ -416,7 +443,13 @@ photo.addEventListener("change", async () => {
   $("status").textContent = officialUseBlocked ? "Photo loaded on this device. Select Custom photo to enable general-purpose editing; official export remains disabled." : "Photo loaded on this device. Adjust the framing, then create your photo.";
   outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true; $("analyzeFace").disabled = false; $("qualityCheck").disabled = false; $("aiFaceQuality").disabled = false; $("removeBackground").disabled = officialUseBlocked; $("downloadBackground").disabled = true; $("backgroundCanvas").hidden = true; $("backgroundStatus").textContent = officialUseBlocked ? "Choose Custom Photo mode to use this experimental tool." : "Photo loaded. Tap Remove background to run segmentation locally."; $("qualityStatus").textContent = "New photo loaded. Tap Run photo quality check to analyze it locally."; $("faceStatus").textContent = "New photo loaded. Run analysis again if needed."; canvas.hidden = true;
  };
- img.onerror = () => { URL.revokeObjectURL(nextUrl); alert("This image could not be opened. Please try another photo."); };
+ img.onerror = () => {
+  URL.revokeObjectURL(nextUrl);
+  if (requestId !== uploadRequestId) return;
+  photo.value = "";
+  $("status").textContent = "This image could not be opened. Please choose another photo.";
+  alert("This image could not be opened. Please try another photo.");
+ };
  img.src = nextUrl;
 });
 
@@ -516,14 +549,18 @@ $("download").addEventListener("click", async () => {
   }
   if (!blob || blob.size === 0 || blob.type !== format) throw new Error("The browser did not create a valid "+extension.toUpperCase()+" file.");
   const url = URL.createObjectURL(blob), link = document.createElement("a");
+  const filename = "passport-ai-photo-" + canvas.width + "x" + canvas.height + "." + extension;
   link.href = url;
-  link.download = "passport-ai-photo-" + canvas.width + "x" + canvas.height + "." + extension;
-  link.style.display = "none";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  $("downloadHelp").textContent = "Download requested: "+canvas.width+" × "+canvas.height+" px · "+(blob.size/1024).toFixed(1)+" KB · "+blob.type+"."+sizeNote+" Check your phone's Downloads folder.";
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  link.download = filename;
+  link.textContent = "Tap here if the download did not start automatically";
+  link.style.display = "inline-block";
+  link.style.marginTop = "8px";
+  link.style.fontWeight = "700";
+  link.style.color = "#2459d3";
+  $("downloadHelp").textContent = "Download requested: "+canvas.width+" × "+canvas.height+" px · "+(blob.size/1024).toFixed(1)+" KB · "+blob.type+"."+sizeNote+" Check your phone's Downloads folder. ";
+  $("downloadHelp").appendChild(link);
+  // Keep the fallback URL alive long enough for mobile users to tap it manually.
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
  } catch (error) {
   $("downloadHelp").textContent = "Export failed: "+(error && error.message ? error.message : "unknown error")+". Try a larger target or another format.";
  } finally {
