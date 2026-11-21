@@ -386,6 +386,8 @@ let exportRequestId = 0;
 window.__backgroundExportRequestId = 0;
 photo.addEventListener("change", async () => {
  const requestId = ++uploadRequestId;
+ window.__faceAnalysisRequestId = (window.__faceAnalysisRequestId || 0) + 1;
+ window.__aiFaceQualityRequestId = (window.__aiFaceQualityRequestId || 0) + 1;
  exportRequestId++; // Cancel any export still encoding the previous photo.
  window.__backgroundExportRequestId++; // Cancel pending background PNG exports for the previous photo.
  const file = photo.files && photo.files[0];
@@ -944,28 +946,36 @@ const aiFaceQualityStatus = document.getElementById("aiFaceQualityStatus");
 aiFaceQualityButton.addEventListener("click", async () => {
  const image = document.getElementById("preview");
  if (!image || !image.complete || !image.naturalWidth) { aiFaceQualityStatus.textContent = "Upload a photo first."; return; }
+ const requestId = window.__aiFaceQualityRequestId = (window.__aiFaceQualityRequestId || 0) + 1;
+ const requestedImageSrc = image.src;
  aiFaceQualityButton.disabled = true;
  aiFaceQualityStatus.textContent = "Detecting one face, loading eDifFIQA-T and verifying the model file. First run may take time and use several megabytes of data…";
  try {
   const detector = await getFaceDetector();
+  if (requestId !== window.__aiFaceQualityRequestId || image.src !== requestedImageSrc) return;
   const result = detector.detect(image);
   const detections = result && result.detections ? result.detections : [];
   if (detections.length !== 1) throw new Error(detections.length === 0 ? "No face detected. Use a clear, front-facing photo." : "More than one face detected. Use a photo with one person.");
-  const assessment = await scoreFaceQuality({ image, box: detections[0].boundingBox, onProgress: stage => { aiFaceQualityStatus.textContent = stage; } });
+  const assessment = await scoreFaceQuality({ image, box: detections[0].boundingBox, onProgress: stage => { if (requestId === window.__aiFaceQualityRequestId && image.src === requestedImageSrc) aiFaceQualityStatus.textContent = stage; } });
+  if (requestId !== window.__aiFaceQualityRequestId || image.src !== requestedImageSrc) return;
   aiFaceQualityStatus.textContent = "Experimental eDifFIQA-T face-quality score: " + assessment.score.toFixed(3) + ". Higher scores generally indicate better face-image quality in the model's training/evaluation setting. " + assessment.note + " The score is not a passport acceptance result.";
  } catch (error) {
-  aiFaceQualityStatus.textContent = "AI face-quality model could not run. Your photo was not uploaded by this feature. " + (error && error.message ? error.message : "Unknown error.");
- } finally { aiFaceQualityButton.disabled = false; }
+  if (requestId === window.__aiFaceQualityRequestId && image.src === requestedImageSrc) aiFaceQualityStatus.textContent = "AI face-quality model could not run. Your photo was not uploaded by this feature. " + (error && error.message ? error.message : "Unknown error.");
+ } finally { if (requestId === window.__aiFaceQualityRequestId) aiFaceQualityButton.disabled = !image.complete || !image.naturalWidth; }
 });
 faceButton.addEventListener("click", async () => {
  const image = document.getElementById("preview");
  if (!image || !image.complete || !image.naturalWidth) { faceStatus.textContent = "Upload a photo first."; return; }
+ const requestId = window.__faceAnalysisRequestId = (window.__faceAnalysisRequestId || 0) + 1;
+ const requestedImageSrc = image.src;
  faceButton.disabled = true;
  faceStatus.textContent = "Loading face detector and analyzing on this device… First run may take a little longer."; 
  try {
   const detector = await getFaceDetector();
+  if (requestId !== window.__faceAnalysisRequestId || image.src !== requestedImageSrc) return;
   const result = detector.detect(image);
   const detections = result && result.detections ? result.detections : [];
+  if (requestId !== window.__faceAnalysisRequestId || image.src !== requestedImageSrc) return;
   lastAnalyzedImage = image.src;
   lastFaceBox = null;
   if (detections.length === 0) {
@@ -991,9 +1001,9 @@ faceButton.addEventListener("click", async () => {
    faceStatus.textContent = "One face detected" + (score === null ? "" : " (model confidence " + score + "%)") + ". Face box: about " + faceW.toFixed(1) + "% of image width × " + faceH.toFixed(1) + "% of image height. " + framing.hints.join(" ") + " These are general framing hints only; they are not official size or acceptance measurements.";
   }
  } catch (error) {
-  faceStatus.textContent = "Face analysis could not start. Check your internet connection and try again. Your photo has not been uploaded by Passport AI. Technical detail: " + (error && error.message ? error.message : "unknown error");
+  if (requestId === window.__faceAnalysisRequestId && image.src === requestedImageSrc) faceStatus.textContent = "Face analysis could not start. Check your internet connection and try again. Your photo has not been uploaded by Passport AI. Technical detail: " + (error && error.message ? error.message : "unknown error");
  } finally {
-  faceButton.disabled = false;
+  if (requestId === window.__faceAnalysisRequestId) faceButton.disabled = !image.complete || !image.naturalWidth;
  }
 });
 autoCenterButton.addEventListener("click", () => {
