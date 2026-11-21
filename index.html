@@ -393,6 +393,9 @@ photo.addEventListener("change", async () => {
  $("removeBackground").disabled = true;
  $("downloadBackground").disabled = true;
  $("backgroundCanvas").hidden = true;
+ // Release the previous full-resolution RGBA canvas buffer on mobile before loading another image.
+ $("backgroundCanvas").width = 0; $("backgroundCanvas").height = 0;
+ $("backgroundStatus").textContent = "Upload a photo and select Custom Photo mode first.";
  $("previewWrap").hidden = true;
  $("status").textContent = "Checking your selected photo…";
  $("downloadHelp").textContent = "A new upload is being checked. The previous photo is no longer available for download.";
@@ -787,6 +790,7 @@ backgroundButton.addEventListener("click", async () => {
   return;
  }
  backgroundButton.disabled=true;downloadBackground.disabled=true;
+ backgroundCanvas.hidden=true; backgroundCanvas.width=0; backgroundCanvas.height=0;
  backgroundStatus.textContent="Loading the segmentation model and detecting the person locally… First use may take a little while.";
  try {
   const segmenter=await getImageSegmenter();
