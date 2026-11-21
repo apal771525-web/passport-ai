@@ -2,6 +2,17 @@ import { test, expect } from "@playwright/test";
 
 test("custom photo keeps original aspect ratio and source resolution through export", async ({ page }) => {
   await page.goto("/");
+  await page.evaluate(() => {
+    window.__passportAiRenderQuality = null;
+    const originalDrawImage = CanvasRenderingContext2D.prototype.drawImage;
+    CanvasRenderingContext2D.prototype.drawImage = function (...args) {
+      window.__passportAiRenderQuality = {
+        smoothingEnabled: this.imageSmoothingEnabled,
+        smoothingQuality: this.imageSmoothingQuality || "unsupported"
+      };
+      return originalDrawImage.apply(this, args);
+    };
+  });
   await page.locator("#document").selectOption("custom");
 
   const pngDataUrl = await page.evaluate(() => {
@@ -33,6 +44,8 @@ test("custom photo keeps original aspect ratio and source resolution through exp
   await expect(page.locator("#canvas")).toBeVisible();
   await expect(page.locator("#canvas")).toHaveAttribute("width", "720");
   await expect(page.locator("#canvas")).toHaveAttribute("height", "1600");
+  const renderQuality = await page.evaluate(() => window.__passportAiRenderQuality);
+  expect(renderQuality).toEqual({ smoothingEnabled: true, smoothingQuality: "high" });
 
   const downloadPromise = page.waitForEvent("download");
   await page.locator("#download").click();
