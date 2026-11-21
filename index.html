@@ -991,14 +991,14 @@ faceButton.addEventListener("click", async () => {
    faceStatus.textContent = detections.length + " faces detected. For a single-person document photo, retake with only the applicant in frame. Detection is not an identity or compliance check.";
   } else {
    const box = detections[0].boundingBox;
+   const framing = assessFaceFraming(image.naturalWidth, image.naturalHeight, box);
+   if (!framing.valid) throw new Error("The face detector returned invalid geometry; no framing estimate was produced.");
    lastFaceBox = box;
    const faceRect = document.getElementById("detectedFaceBox");
    faceRect.setAttribute("x",box.originX); faceRect.setAttribute("y",box.originY);
    faceRect.setAttribute("width",box.width); faceRect.setAttribute("height",box.height);
    document.getElementById("cropGuideOverlay").hidden = false;
    document.getElementById("guideStatus").textContent = "Green outline shows the detector's approximate face box. White lines show thirds. Use these only as visual framing aids.";
-   const framing = assessFaceFraming(image.naturalWidth, image.naturalHeight, box);
-   if (!framing.valid) throw new Error("The face detector returned invalid geometry; no framing estimate was produced.");
    const score = detections[0].categories && detections[0].categories[0] ? Math.round(detections[0].categories[0].score*100) : null;
    const faceW = framing.metrics.faceWidthPercent;
    const faceH = framing.metrics.faceHeightPercent;
