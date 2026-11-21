@@ -774,6 +774,15 @@ backgroundButton.addEventListener("click", async () => {
  const image=document.getElementById("preview");
  if (document.getElementById("document").value !== "custom") {backgroundStatus.textContent="This experimental edit is restricted to Custom Photo mode.";return;}
  if (!image || !image.complete || !image.naturalWidth) {backgroundStatus.textContent="Upload a photo first.";return;}
+ const sourcePixels=image.naturalWidth*image.naturalHeight;
+ // Full-resolution ImageData needs several bytes per source pixel in addition
+ // to the browser image, canvas backing store and model buffers. Keep this
+ // optional edit conservative on phones to avoid tab crashes from memory pressure.
+ const maxBackgroundPixels=12000000;
+ if (!Number.isSafeInteger(sourcePixels) || sourcePixels>maxBackgroundPixels) {
+  backgroundStatus.textContent="This photo is too large for safe on-device background removal on many phones ("+image.naturalWidth+" × "+image.naturalHeight+" px). Please use a copy up to 12 megapixels. Your original upload remains unchanged.";
+  return;
+ }
  backgroundButton.disabled=true;downloadBackground.disabled=true;
  backgroundStatus.textContent="Loading the segmentation model and detecting the person locally… First use may take a little while.";
  try {
@@ -819,6 +828,11 @@ backgroundButton.addEventListener("click", async () => {
 downloadBackground.addEventListener("click",()=>{
  if(backgroundCanvas.hidden||!backgroundCanvas.width)return;
  const fill=document.getElementById("backgroundFill").value;
+ const exportPixels=backgroundCanvas.width*backgroundCanvas.height;
+ if(!Number.isSafeInteger(exportPixels)||exportPixels>12000000){
+  backgroundStatus.textContent="This background-removal result is too large to export safely on this device. Please use a photo up to 12 megapixels.";
+  return;
+ }
  const exportCanvas=document.createElement("canvas");
  exportCanvas.width=backgroundCanvas.width;exportCanvas.height=backgroundCanvas.height;
  const exportCtx=exportCanvas.getContext("2d");
