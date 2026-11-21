@@ -51,6 +51,33 @@ test('custom photo upload renders a result and enables a real file download', as
   expect(download.suggestedFilename()).toMatch(/\.(jpg|png)$/i);
 });
 
+test('invalidates stale exports whenever crop or image adjustments change', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#document').selectOption('custom');
+  await page.locator('#photo').setInputFiles({
+    name: 'stale-output.png',
+    mimeType: 'image/png',
+    buffer: tinyPng
+  });
+  await page.locator('#process').click();
+  await expect(page.locator('#download')).toBeEnabled();
+  await expect(page.locator('#canvas')).toBeVisible();
+
+  await page.locator('#zoom').fill('1.2');
+  await expect(page.locator('#download')).toBeDisabled();
+  await expect(page.locator('#printSheetButton')).toBeDisabled();
+  await expect(page.locator('#canvas')).toBeHidden();
+  await expect(page.locator('#status')).toContainText(/settings changed/i);
+
+  await page.locator('#process').click();
+  await expect(page.locator('#download')).toBeEnabled();
+  await expect(page.locator('#canvas')).toBeVisible();
+
+  await page.locator('#brightness').fill('110');
+  await expect(page.locator('#download')).toBeDisabled();
+  await expect(page.locator('#canvas')).toBeHidden();
+});
+
 test('shows a draggable crop frame in custom mode and syncs it with framing sliders', async ({ page }) => {
   await page.goto('/');
   await page.locator('#document').selectOption('custom');
