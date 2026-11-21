@@ -14,8 +14,12 @@ export function sampleFeatheredAlpha(mask, width, height, sourceX, sourceY, low 
   const x0 = Math.floor(x), y0 = Math.floor(y);
   const x1 = Math.min(width - 1, x0 + 1), y1 = Math.min(height - 1, y0 + 1);
   const tx = x - x0, ty = y - y0;
-  const top = mask[y0 * width + x0] * (1 - tx) + mask[y0 * width + x1] * tx;
-  const bottom = mask[y1 * width + x0] * (1 - tx) + mask[y1 * width + x1] * tx;
+  const sample = index => {
+    const value = mask[index];
+    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+  };
+  const top = sample(y0 * width + x0) * (1 - tx) + sample(y0 * width + x1) * tx;
+  const bottom = sample(y1 * width + x0) * (1 - tx) + sample(y1 * width + x1) * tx;
   const confidence = top * (1 - ty) + bottom * ty;
   const t = Math.max(0, Math.min(1, (confidence - low) / (high - low)));
   const smooth = t * t * (3 - 2 * t);
