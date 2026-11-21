@@ -711,6 +711,7 @@ function finishDrag(event) {
 }
 cropFrame.addEventListener("pointerup", finishDrag);
 cropFrame.addEventListener("pointercancel", finishDrag);
+cropFrame.addEventListener("lostpointercapture", finishDrag);
 cropFrame.addEventListener("keydown", event => {
   const step = event.shiftKey ? 10 : 2;
   const next = { horizontal: Number(slider.horizontal.value), vertical: Number(slider.vertical.value) };
