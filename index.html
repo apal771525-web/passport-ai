@@ -288,6 +288,7 @@ function renderRequirements(){
 }
 $("country").addEventListener("change", renderRequirements);
 $("document").addEventListener("change", () => {
+ invalidateRenderedOutput("Document mode changed.");
  if ($("document").value !== "custom") {
   window.__backgroundExportRequestId++;
   downloadBackground.disabled = true;
@@ -361,7 +362,7 @@ $("sizePreset").addEventListener("change",()=>{
  $("width").value=String(Math.min(3000,dims.width));$("height").value=String(Math.min(3000,dims.height));
  $("printWidth").value=String(preset.widthMm);$("printHeight").value=String(preset.heightMm);
  $("dpiHelp").textContent="Selected "+preset.widthMm+" × "+preset.heightMm+" mm at "+dpi+" DPI ≈ "+dims.width+" × "+dims.height+" px.";
- outputReady=false;$("download").disabled=true;$("printSheetButton").disabled=true;updateImageInfo();
+ invalidateRenderedOutput("Photo size preset changed.");updateImageInfo();
  }catch(error){$("dpiHelp").textContent=error.message;}
 });
 $("applyCustomSize").addEventListener("click",()=>{
@@ -369,7 +370,7 @@ $("applyCustomSize").addEventListener("click",()=>{
  if(dims.width<100||dims.height<100||dims.width>3000||dims.height>3000)throw new RangeError("Output dimensions must be between 100 and 3000 pixels.");
  $("width").value=String(dims.width);$("height").value=String(dims.height);$("sizePreset").value="custom";
  $("dpiHelp").textContent="Applied "+dims.width+" × "+dims.height+" pixels. Review before creating the photo.";
- outputReady=false;$("download").disabled=true;$("printSheetButton").disabled=true;updateImageInfo();
+ invalidateRenderedOutput("Custom photo dimensions changed.");updateImageInfo();
  }catch(error){$("dpiHelp").textContent=error.message;}
 });
 $("dpi").addEventListener("change",()=>{if($("sizePreset").value!=="custom")$("sizePreset").dispatchEvent(new Event("change"));});
@@ -377,9 +378,7 @@ $("dpi").addEventListener("change",()=>{if($("sizePreset").value!=="custom")$("s
 $("reset").addEventListener("click", () => {
  $("zoom").value = "1"; $("horizontal").value = "0"; $("vertical").value = "0";
  updateRangeLabels();
- $("status").textContent = "Framing reset. Select Create Photo to update your result.";
- outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true;
- $("downloadHelp").textContent = "Framing changed. Create a fresh photo before downloading.";
+ invalidateRenderedOutput("Framing reset.");
 });
 let uploadRequestId = 0;
 let exportRequestId = 0;
@@ -1033,9 +1032,7 @@ autoCenterButton.addEventListener("click", () => {
  document.getElementById("horizontal").value = String(suggestion.horizontal);
  document.getElementById("vertical").value = String(suggestion.vertical);
  updateRangeLabels();
- outputReady = false;
- document.getElementById("download").disabled = true;
- document.getElementById("printSheetButton").disabled = true;
+ invalidateRenderedOutput("Suggested crop applied.");
  autoCenterHelp.textContent = "Suggested crop applied. Review the preview carefully, then select Create Photo. This is not a compliance measurement.";
 });
 </script>
