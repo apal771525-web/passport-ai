@@ -187,6 +187,46 @@ test("uses the person confidence mask, releases segmentation results and exports
   await expect(page.locator("#downloadBackground")).toBeDisabled();
 });
 
+test("does not run segmentation for an upload replaced while the model is loading", async ({ page }) => {
+  let releaseModule;
+  let markModuleRequested;
+  const moduleRequested = new Promise(resolve => { markModuleRequested = resolve; });
+  const moduleGate = new Promise(resolve => { releaseModule = resolve; });
+  await page.route("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs", async route => {
+    markModuleRequested();
+    await moduleGate;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      body: `
+        export const FilesetResolver = { forVisionTasks: async () => ({}) };
+        export const ImageSegmenter = {
+          createFromOptions: async () => ({
+            segment: () => {
+              globalThis.__staleSegmentationCalls = (globalThis.__staleSegmentationCalls || 0) + 1;
+              return {
+                confidenceMasks: [{ width: 1, height: 1, getAsFloat32Array: () => new Float32Array([0]) }, { width: 1, height: 1, getAsFloat32Array: () => new Float32Array([1]) }],
+                close: () => {}
+              };
+            }
+          })
+        };
+      `
+    });
+  });
+  await page.goto("/");
+  await page.locator("#document").selectOption("custom");
+  await page.locator("#photo").setInputFiles({ name: "first-pending.png", mimeType: "image/png", buffer: tinyPng });
+  await page.locator("#removeBackground").click();
+  await moduleRequested;
+  await page.locator("#photo").setInputFiles({ name: "replacement.png", mimeType: "image/png", buffer: tinyPng });
+  releaseModule();
+  await expect(page.locator("#backgroundStatus")).toContainText(/newer photo was selected/i);
+  expect(await page.evaluate(() => globalThis.__staleSegmentationCalls || 0)).toBe(0);
+  await expect(page.locator("#backgroundCanvas")).toBeHidden();
+  await expect(page.locator("#downloadBackground")).toBeDisabled();
+});
+
 test("blocks memory-heavy background removal before allocating a full-resolution canvas", async ({ page }) => {
   await page.goto("/");
   await page.locator("#document").selectOption("custom");
