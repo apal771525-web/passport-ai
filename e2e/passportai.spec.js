@@ -309,6 +309,43 @@ test('uses validated face framing metrics in the browser UI', async ({ page }) =
   await expect(page.locator('#detectedFaceBox')).toHaveAttribute('width', '0.5');
 });
 
+test('cancels face analysis if a newer photo is uploaded while the detector loads', async ({ page }) => {
+  await page.route('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: `
+        export const FilesetResolver = {
+          forVisionTasks: async () => {
+            await new Promise(resolve => setTimeout(resolve, 600));
+            return {};
+          }
+        };
+        export const FaceDetector = {
+          createFromOptions: async () => ({
+            detect: () => ({
+              detections: [{
+                boundingBox: { originX: 0.2, originY: 0.1, width: 0.5, height: 0.5 },
+                categories: [{ score: 0.91 }]
+              }]
+            })
+          })
+        };
+      `
+    })
+  );
+  await page.goto('/');
+  await page.locator('#photo').setInputFiles({ name: 'first-face.png', mimeType: 'image/png', buffer: tinyPng });
+  await page.locator('#analyzeFace').click();
+  await expect(page.locator('#faceStatus')).toContainText('Loading face detector');
+  await page.locator('#photo').setInputFiles({ name: 'replacement-face.png', mimeType: 'image/png', buffer: tinyPng });
+  await expect(page.locator('#faceStatus')).toContainText('New photo loaded');
+  await page.waitForTimeout(700);
+  await expect(page.locator('#faceStatus')).toContainText('New photo loaded');
+  await expect(page.locator('#detectedFaceBox')).toHaveAttribute('width', '0');
+  await expect(page.locator('#analyzeFace')).toBeEnabled();
+});
+
 test('falls back to the unpkg MediaPipe source when jsDelivr is unavailable', async ({ page }) => {
   await page.route('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs', route => route.abort());
   await page.route('https://unpkg.com/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs', route => route.fulfill({
