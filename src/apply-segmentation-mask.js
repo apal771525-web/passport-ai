@@ -31,8 +31,15 @@ export function applyFeatheredMaskToImageData(imageData, sourceWidth, sourceHeig
       const x0 = Math.floor(maskX);
       const x1 = Math.min(maskWidth - 1, x0 + 1);
       const tx = maskX - x0;
-      const top = mask[row0 + x0] * (1 - tx) + mask[row0 + x1] * tx;
-      const bottom = mask[row1 + x0] * (1 - tx) + mask[row1 + x1] * tx;
+      // Confidence masks should be in [0, 1]. Clamp finite samples and
+      // treat non-finite model output as background instead of allowing NaN
+      // to poison alpha and create unpredictable transparent pixels.
+      const sample = index => {
+        const value = mask[index];
+        return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+      };
+      const top = sample(row0 + x0) * (1 - tx) + sample(row0 + x1) * tx;
+      const bottom = sample(row1 + x0) * (1 - tx) + sample(row1 + x1) * tx;
       const confidence = top * (1 - ty) + bottom * ty;
       const t = Math.max(0, Math.min(1, (confidence - low) / range));
       const smooth = t * t * (3 - 2 * t);
