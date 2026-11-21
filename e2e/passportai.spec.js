@@ -63,7 +63,7 @@ test('invalidates stale exports whenever crop or image adjustments change', asyn
   await expect(page.locator('#download')).toBeEnabled();
   await expect(page.locator('#canvas')).toBeVisible();
 
-  await page.locator('#zoom').fill('1.2');
+  await page.locator('#zoom').evaluate(el => { el.value = '1.2'; el.dispatchEvent(new Event('input', { bubbles: true })); });
   await expect(page.locator('#download')).toBeDisabled();
   await expect(page.locator('#printSheetButton')).toBeDisabled();
   await expect(page.locator('#canvas')).toBeHidden();
@@ -73,7 +73,7 @@ test('invalidates stale exports whenever crop or image adjustments change', asyn
   await expect(page.locator('#download')).toBeEnabled();
   await expect(page.locator('#canvas')).toBeVisible();
 
-  await page.locator('#brightness').fill('110');
+  await page.locator('#brightness').evaluate(el => { el.value = '110'; el.dispatchEvent(new Event('input', { bubbles: true })); });
   await expect(page.locator('#download')).toBeDisabled();
   await expect(page.locator('#canvas')).toBeHidden();
 });
