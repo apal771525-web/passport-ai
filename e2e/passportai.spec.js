@@ -49,6 +49,33 @@ test('custom photo upload renders a result and enables a real file download', as
   await page.locator('#download').click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.(jpg|png)$/i);
+  const manualFallback = page.locator("#downloadHelp a");
+  await expect(manualFallback).toBeVisible();
+  await expect(manualFallback).toHaveAttribute("download", /passport-ai-photo-/);
+  await expect(manualFallback).toContainText(/tap here if the download did not start/i);
+  const fallbackDownloadPromise = page.waitForEvent("download");
+  await manualFallback.click();
+  const fallbackDownload = await fallbackDownloadPromise;
+  expect(fallbackDownload.suggestedFilename()).toBe(download.suggestedFilename());
+});
+
+test("a new upload clears the old output and manual download fallback", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#document").selectOption("custom");
+  await page.locator("#photo").setInputFiles({ name: "first-photo.png", mimeType: "image/png", buffer: tinyPng });
+  await page.locator("#process").click();
+  await expect(page.locator("#download")).toBeEnabled();
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#download").click();
+  await downloadPromise;
+  await expect(page.locator("#downloadHelp a")).toBeVisible();
+
+  await page.locator("#photo").setInputFiles({ name: "second-photo.png", mimeType: "image/png", buffer: tinyPng });
+  await expect(page.locator("#download")).toBeDisabled();
+  await expect(page.locator("#canvas")).toBeHidden();
+  await expect(page.locator("#downloadHelp a")).toHaveCount(0);
+  await expect(page.locator("#previewWrap")).toBeVisible();
+  await expect(page.locator("#status")).toContainText(/photo loaded/i);
 });
 
 test('invalidates stale exports whenever crop or image adjustments change', async ({ page }) => {
