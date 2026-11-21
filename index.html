@@ -370,6 +370,7 @@ $("reset").addEventListener("click", () => {
  updateRangeLabels();
  $("status").textContent = "Framing reset. Select Create Photo to update your result.";
  outputReady = false; $("download").disabled = true; $("printSheetButton").disabled = true;
+ $("downloadHelp").textContent = "Framing changed. Create a fresh photo before downloading.";
 });
 let uploadRequestId = 0;
 photo.addEventListener("change", async () => {
@@ -395,9 +396,11 @@ photo.addEventListener("change", async () => {
  $("downloadHelp").textContent = "A new upload is being checked. The previous photo is no longer available for download.";
  if (imageUrl) { URL.revokeObjectURL(imageUrl); imageUrl = null; }
  if (!["image/jpeg","image/png","image/webp"].includes(file.type)) {
+  $("status").textContent = "Unsupported file type. Please choose a JPG, PNG or WebP image.";
   alert("Please select a JPG, PNG or WebP image."); photo.value = ""; return;
  }
  if (!Number.isSafeInteger(file.size) || file.size <= 0 || file.size > 15 * 1024 * 1024) {
+  $("status").textContent = "Image size is invalid. Choose a file up to 15 MB.";
   alert("The selected image must be larger than 0 bytes and no more than 15 MB."); photo.value = ""; return;
  }
  let signature;
@@ -415,8 +418,8 @@ photo.addEventListener("change", async () => {
  const isWebp = signature.length >= 12 && signature[0] === 0x52 && signature[1] === 0x49 && signature[2] === 0x46 && signature[3] === 0x46 && signature[8] === 0x57 && signature[9] === 0x45 && signature[10] === 0x42 && signature[11] === 0x50;
  const signatureType = isJpeg ? "image/jpeg" : isPng ? "image/png" : isWebp ? "image/webp" : null;
  if (!signatureType || signatureType !== file.type) {
-  alert("The file contents do not match a supported JPG, PNG or WebP image. Please choose a genuine image file."); photo.value = "";
   $("status").textContent = "The selected file is not a valid JPG, PNG or WebP image.";
+  alert("The file contents do not match a supported JPG, PNG or WebP image. Please choose a genuine image file."); photo.value = "";
   return;
  }
  const nextUrl = URL.createObjectURL(file);
@@ -424,7 +427,9 @@ photo.addEventListener("change", async () => {
  img.onload = () => {
   if (requestId !== uploadRequestId) { URL.revokeObjectURL(nextUrl); return; }
   if (!Number.isSafeInteger(img.naturalWidth) || !Number.isSafeInteger(img.naturalHeight) || img.naturalWidth <= 0 || img.naturalHeight <= 0 || img.naturalWidth * img.naturalHeight > 40000000) {
-   URL.revokeObjectURL(nextUrl); photo.value = ""; alert("This image has invalid or excessively large dimensions. Please choose a smaller image."); return;
+   URL.revokeObjectURL(nextUrl); photo.value = "";
+   $("status").textContent = "Image dimensions are invalid or exceed the 40-megapixel safety limit.";
+   alert("This image has invalid or excessively large dimensions. Please choose a smaller image."); return;
   }
   if (imageUrl) URL.revokeObjectURL(imageUrl);
   imageUrl = nextUrl; originalImage = img; originalFile = file; preview.src = imageUrl;
@@ -757,6 +762,10 @@ backgroundButton.addEventListener("click", async () => {
   const segmenter=await getImageSegmenter();
   const result=segmenter.segment(image);
   try {
+   if (originalImage !== image || image.src !== document.getElementById("preview").src) {
+    backgroundStatus.textContent = "A newer photo was selected. Run background removal again on the current photo.";
+    return;
+   }
    const confidenceMask=result.confidenceMasks?.[1];
    const categoryMask=result.categoryMask;
    const mask=confidenceMask || categoryMask;
