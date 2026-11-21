@@ -326,6 +326,7 @@ function updateRangeLabels(){
 }
 ["zoom","horizontal","vertical","quality"].forEach(id => $(id).addEventListener("input", updateRangeLabels));
 function invalidateRenderedOutput(reason = "Photo settings changed.") {
+ exportRequestId++; // A pending async export must never save a stale render.
  if (!outputReady) return;
  outputReady = false;
  canvas.hidden = true;
@@ -375,8 +376,10 @@ $("reset").addEventListener("click", () => {
  $("downloadHelp").textContent = "Framing changed. Create a fresh photo before downloading.";
 });
 let uploadRequestId = 0;
+let exportRequestId = 0;
 photo.addEventListener("change", async () => {
  const requestId = ++uploadRequestId;
+ exportRequestId++; // Cancel any export still encoding the previous photo.
  const file = photo.files && photo.files[0];
  if (!file) return;
  // Clear the previous result immediately so a slow phone file read cannot leave
@@ -464,6 +467,7 @@ photo.addEventListener("change", async () => {
 });
 
 $("process").addEventListener("click", () => {
+ exportRequestId++; // Starting a new render invalidates any export of the previous canvas.
  if (officialUseBlocked) {
   $("status").textContent = "Processing is unavailable for this official document route. Select Custom photo for general-purpose editing.";
   $("processHelp").textContent = "Official document processing remains blocked until the exact application route and permitted operations are independently verified.";
@@ -532,6 +536,8 @@ $("process").addEventListener("click", () => {
 });
 $("download").addEventListener("click", async () => {
  if (officialUseBlocked || !outputReady || !canvas.width || !canvas.height) return;
+ const requestId = ++exportRequestId;
+ const exportWidth = canvas.width, exportHeight = canvas.height;
  const format = $("format").value;
  const extension = format === "image/png" ? "png" : "jpg";
  const targetValue = $("targetKb").value.trim();
@@ -556,6 +562,10 @@ $("download").addEventListener("click", async () => {
     : " Target could not be met even at minimum quality; reduce dimensions or choose a larger KB target.";
   } else {
    blob = await new Promise(resolve => canvas.toBlob(resolve, format, Number($("quality").value)/100));
+  }
+  if (requestId !== exportRequestId || !outputReady || canvas.width !== exportWidth || canvas.height !== exportHeight) {
+   $("downloadHelp").textContent = "Export cancelled because the photo changed while the file was being prepared. Create Photo again, then download the updated result.";
+   return;
   }
   if (!blob || blob.size === 0 || blob.type !== format) throw new Error("The browser did not create a valid "+extension.toUpperCase()+" file.");
   const url = URL.createObjectURL(blob);
@@ -585,7 +595,7 @@ $("download").addEventListener("click", async () => {
  } catch (error) {
   $("downloadHelp").textContent = "Export failed: "+(error && error.message ? error.message : "unknown error")+". Try a larger target or another format.";
  } finally {
-  $("download").disabled = false;
+  $("download").disabled = officialUseBlocked || !outputReady;
  }
 });
 $("printSheetButton").addEventListener("click", () => {
