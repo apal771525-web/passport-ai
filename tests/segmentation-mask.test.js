@@ -28,3 +28,10 @@ test("invalid masks and thresholds are rejected", () => {
   assert.throws(() => sampleFeatheredAlpha(new Float32Array(1), 0, 1, 0, 0), TypeError);
   assert.throws(() => sampleFeatheredAlpha(new Float32Array(1), 1, 1, 0, 0, 0.8, 0.2), TypeError);
 });
+
+test("sanitizes non-finite and out-of-range confidence samples", () => {
+  const mask = new Float32Array([NaN, -1, 2]);
+  assert.equal(sampleFeatheredAlpha(mask, 3, 1, 0, 0), 0);
+  assert.equal(sampleFeatheredAlpha(mask, 3, 1, 1, 0), 0);
+  assert.equal(sampleFeatheredAlpha(mask, 3, 1, 2, 0), 255);
+});
